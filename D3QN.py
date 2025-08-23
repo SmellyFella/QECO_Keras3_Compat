@@ -83,10 +83,9 @@ class DuelingDoubleDeepQNetwork:
 
             # lstm for load levels
             with tf.variable_scope('l0'):
-                lstm_dnn = tf.compat.v1.nn.rnn_cell.BasicLSTMCell(n_lstm)
-                lstm_dnn.zero_state(self.batch_size, tf.float32)
-                lstm_output,lstm_state = tf.nn.dynamic_rnn(lstm_dnn, lstm_s, dtype=tf.float32)
-                lstm_output_reduced = tf.reshape(lstm_output[:, -1, :], shape=[-1, n_lstm])
+                lstm_layer = tf.keras.layers.LSTM(n_lstm, return_sequences=True, return_state=True, name="lstm")
+                lstm_output, h, c = lstm_layer(lstm_s)
+                lstm_output_reduced = lstm_output[:, -1, :]
 
             # first layer
             with tf.variable_scope('l1'):
