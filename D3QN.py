@@ -200,7 +200,8 @@ class DuelingDoubleDeepQNetwork:
             action = np.argmax(actions_value)
 
         else:
-            action = np.random.randint(1, self.n_actions)   
+        #Changed the minimum value for randint to 0 from 1 to ensure that the edge devices are able to process locally if it suits/the model thinks it is best.
+            action = np.random.randint(0, self.n_actions)   
         return action
 
     def learn(self):
@@ -316,4 +317,5 @@ class DuelingDoubleDeepQNetwork:
 
         print(latest_ckpt, "_____+______________________________________________")
         if latest_ckpt is not None:
+
             self.saver.restore(self.sess, latest_ckpt)
