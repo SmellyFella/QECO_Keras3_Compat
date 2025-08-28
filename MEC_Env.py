@@ -29,6 +29,8 @@ class MEC:
         self.drop_trans_count = 0
         self.drop_edge_count = 0
         self.drop_ue_count = 0
+        #Added successful offloads count to track how many tasks were successfully offloaded
+        self.successful_offloads = 0
   
 
         # Computation and transmission capacities
@@ -99,6 +101,8 @@ class MEC:
         self.drop_trans_count = 0
         self.drop_edge_count = 0
         self.drop_ue_count = 0
+        #Added the reset for successful offloads
+        self.successful_offloads = 0
 
         # Reset variables and queues
         self.task_history = [[] for _ in range(self.n_ue)]
@@ -376,6 +380,9 @@ class MEC:
                             self.process_delay[self.edge_process_task[ue_index][edge_index]['TIME'],ue_index] \
                                 = self.time_count - self.edge_process_task[ue_index][edge_index]['TIME'] + 1
 
+                            #Added increment to count successful task offloads
+                            self.successful_offloads += 1
+                            
                             #self.task_history[self.edge_process_task[ue_index][edge_index]['UE_ID']][self.edge_process_task[ue_index][edge_index]['TASK_ID']]['d_state'][self.edge_process_task[ue_index][edge_index]['DIV']] = 1
                             self.edge_process_task[ue_index][edge_index]['REMAIN'] = np.nan
                             '''
@@ -570,4 +577,5 @@ class MEC:
                         self.process_delay[self.task_history[ue][task]['TIME'], ue] = self.max_delay
                         self.unfinish_task[self.task_history[ue][task]['TIME'], ue] = 1
         '''
+
    
