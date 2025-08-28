@@ -123,7 +123,14 @@ def train(ue_RL_list, NUM_EPISODE):
         print("Epsilon  :", ue_RL_list[0].epsilon)
 
         # BITRATE ARRIVAL
-        bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_ue])
+        #Below replaced with periodic instead of probabilistic bit rate to better emulate smart meters
+        ##bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_ue])
+        bitarrive_size = np.zeros([env.n_time, env.n_ue])
+        for ue in range(env.n_ue):
+            for t in range(0, env.n_time, env.smart_meter_period):
+                bitarrive_size[t, ue] = np.random.uniform(env.min_arrive_size, env.max_arrive_size)
+
+        
         task_prob = env.task_arrive_prob
         bitarrive_size = bitarrive_size * (np.random.uniform(0, 1, size=[env.n_time, env.n_ue]) < task_prob)
         bitarrive_size[-env.max_delay:, :] = np.zeros([env.max_delay, env.n_ue])
@@ -520,5 +527,6 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(ue_RL_list, Config.N_EPISODE)
+
 
 
