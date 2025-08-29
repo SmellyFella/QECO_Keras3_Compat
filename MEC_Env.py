@@ -17,6 +17,8 @@ class MEC:
         self.ue_p_tran     = Config.UE_TRAN_ENERGY
         self.ue_p_idle     = Config.UE_IDLE_ENERGY
         self.edge_p_comp   = Config.EDGE_COMP_ENERGY
+
+        self.smart_meter_period = Config.SMART_METER_PERIOD
         
 
         self.time_count      = 0
