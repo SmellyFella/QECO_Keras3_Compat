@@ -209,6 +209,10 @@ class DuelingDoubleDeepQNetwork:
 
     def learn(self):
 
+      # Only start learning when enough memory has been collected
+        if self.memory_counter < self.batch_size + self.n_lstm_step:
+          return  # skip this call until replay memory is ready
+
         # check if replace target_net parameters
         if self.learn_step_counter % self.replace_target_iter == 0:
             # run the self.replace_target_op in __int__
@@ -310,7 +314,7 @@ class DuelingDoubleDeepQNetwork:
         self.energy_store[episode][time] = energy + energy2 + fog_energy + idle_energy
 
     #Add a method for storing the list of successful task offloads
-    def do_store_offload(self, episode, time, success)
+    def do_store_offload(self, episode, time, success):
         while episode >= len(self.offload_store):
             self.offload_store.append(np.zeros([self.n_time]))
         self.offload_store[episode][time] = success
