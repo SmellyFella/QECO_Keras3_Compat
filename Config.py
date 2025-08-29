@@ -27,12 +27,13 @@ class Config(object):
 
 
     # Simulation scenario
-    N_EPISODE        = 1000                 # Number of Episodes
+    N_EPISODE        = 500                # Number of Episodes
     N_TIME_SLOT      = 100                  # Number of Time Slots
     DURATION         = 0.1                  # Time Slot Duration
     TASK_ARRIVE_PROB = 0.3                  # Task Generation Probability
     N_TIME = N_TIME_SLOT + MAX_DELAY
 
+    SMART_METER_PERIOD = 5   # tasks generated every 5 timesteps
 
     # Algorithm settings
     LEARNING_RATE    = 0.01
