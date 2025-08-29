@@ -44,7 +44,7 @@ def QoE_Function(delay, max_delay, unfinish_task, ue_energy_state, ue_comp_energ
 
     return QoE
  
-
+"""
 def Drop_Count(ue_RL_list, episode):
     #print(env.unfinish_task.shape)
     drrop_delay10 = 0 
@@ -66,7 +66,94 @@ def Cal_QoE(ue_RL_list, episode):
     avg_episode_sum_reward = episode_sum_reward / len(ue_RL_list)
     #print(f"reward: {avg_episode_sum_reward}")
     return avg_episode_sum_reward
+"""
+def Drop_Count(ue_RL_list, episode):
+    drrop_delay10 = 0 
+    drrop = 0
 
+    # Sum unfinished tasks from environment
+    for time_index in range(min(100, env.n_time)):   
+        drrop += sum(env.unfinish_task[time_index])
+
+    # Count delays equal to 10 from each UE's delay_store
+    for ue in ue_RL_list:
+        if episode < len(ue.delay_store):
+            for val in ue.delay_store[episode]:
+                if val == 10:
+                    drrop_delay10 += 1
+
+    # Optional: you can return both if you want
+    # return drrop, drrop_delay10
+    return drrop
+
+def Cal_QoE(ue_RL_list, episode):
+    episode_rewards = []
+
+    for ue in ue_RL_list:
+        # Only process if the episode exists
+        if episode < len(ue.reward_store):
+            episode_data = ue.reward_store[episode]
+            if len(episode_data) > 0:
+                episode_rewards.append(sum(episode_data))
+            else:
+                episode_rewards.append(0.0)
+        else:
+            episode_rewards.append(0.0)
+
+    if len(episode_rewards) == 0:
+        return 0.0
+
+    avg_episode_sum_reward = sum(episode_rewards) / len(ue_RL_list)
+    return avg_episode_sum_reward
+
+
+def Cal_Delay(ue_RL_list, episode):
+    avg_delay_in_episode = []
+
+    for i in range(len(ue_RL_list)):
+        # Check if this episode exists in delay_store
+        if episode < len(ue_RL_list[i].delay_store):
+            for j in range(len(ue_RL_list[i].delay_store[episode])):
+                if ue_RL_list[i].delay_store[episode][j] != 0:
+                    avg_delay_in_episode.append(ue_RL_list[i].delay_store[episode][j])
+
+    # Avoid division by zero if no delays were recorded
+    if len(avg_delay_in_episode) > 0:
+        return sum(avg_delay_in_episode) / len(avg_delay_in_episode)
+    else:
+        return 0
+
+def Cal_Energy(ue_RL_list, episode):
+    energy_ue_list = []
+
+    for ue_RL in ue_RL_list:
+        # Only process if the episode exists
+        if episode < len(ue_RL.energy_store):
+            energy_ue_list.append(sum(ue_RL.energy_store[episode]))
+        else:
+            energy_ue_list.append(0.0)  # Default if episode missing
+
+    if len(energy_ue_list) == 0:
+        return 0.0
+
+    return sum(energy_ue_list) / len(energy_ue_list)
+
+def Cal_Successful_Offloads(ue_RL_list, episode):
+    offloads = []
+
+    for ue in ue_RL_list:
+        # Only process if the episode exists
+        if episode < len(ue.offload_store):
+            offloads.append(sum(ue.offload_store[episode]))
+        else:
+            offloads.append(0.0)  # Default if episode missing
+
+    if len(offloads) == 0:
+        return 0.0
+
+    return sum(offloads) / len(ue_RL_list)  # average per UE
+
+"""
 
 def Cal_Delay(ue_RL_list, episode):
 
@@ -77,6 +164,8 @@ def Cal_Delay(ue_RL_list, episode):
                 avg_delay_in_episode.append(ue_RL_list[i].delay_store[episode][j])
     avg_delay_in_episode = (sum(avg_delay_in_episode)/len(avg_delay_in_episode))
     return avg_delay_in_episode
+
+
 
 def Cal_Energy(ue_RL_list, episode):
     energy_ue_list = [sum(ue_RL.energy_store[episode]) for ue_RL in ue_RL_list]
@@ -91,7 +180,7 @@ def Cal_Successful_Offloads(ue_RL_list, episode):
         offloads.append(sum(ue.offload_store[episode]))
     return sum(offloads) / len(ue_RL_list)  # average per UE
 
-
+"""
 
 '''
 def cal_reward(ue_RL_list):
@@ -230,7 +319,7 @@ def train(ue_RL_list, NUM_EPISODE):
             #Track the successful offloads:
             for ue_index in range(env.n_ue):
                 # Example: action==1 means "offload to fog"
-                if action_all[ue_index] == 1 and env.edge_bit_processed[env.time_count-1, ue_index] > 0:
+                if action_all[ue_index] == 1 and (env.edge_bit_processed[env.time_count-1, ue_index] > 0).any():
                     success_flag = 1
                 else:
                     success_flag = 0
@@ -412,14 +501,14 @@ def train(ue_RL_list, NUM_EPISODE):
 
                 
                 if episode % 200 == 0 and episode != 0:
-                    os.mkdir("models" + "/" + str(episode))
+                    os.makedirs("models" + "/" + str(episode))
                     for ue in range(env.n_ue):
                         ue_RL_list[ue].saver.save(ue_RL_list[ue].sess, "models/" + str(episode) +'/'+ str(ue) + "_X_model" +'/model.ckpt', global_step=episode)
                         print("UE", ue, "Network_model_seved\n")
                 
                 
                 if episode % 999 == 0 and episode != 0:
-                    os.mkdir("models" + "/" + str(episode))
+                    os.makedirs("models" + "/" + str(episode))
                     for ue in range(env.n_ue):
                         ue_RL_list[ue].saver.save(ue_RL_list[ue].sess, "models/" + str(episode) +'/'+ str(ue) + "_X_model" +'/model.ckpt', global_step=episode)
                         print("UE", ue, "Network_model_seved\n")
@@ -464,7 +553,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     avg_energy_list_in_episode.append(Cal_Energy(ue_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(4, 1, figsize=(10, 20))
+                    fig, axs = plt.subplots(5, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
