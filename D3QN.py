@@ -334,4 +334,3 @@ class DuelingDoubleDeepQNetwork:
 
             self.saver.restore(self.sess, latest_ckpt)
 
-
