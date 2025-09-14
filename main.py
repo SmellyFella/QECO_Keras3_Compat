@@ -7,20 +7,10 @@ import random
 import os
 import shutil
 
-'''
-if not os.path.exists("models"):
-    os.mkdir("models")
-else:
-    shutil.rmtree("models")
-    os.mkdir("models")
-'''
-
-
 
 def normalize(parameter, minimum, maximum):
     normalized_parameter = (parameter - minimum) / (maximum - minimum)
     return normalized_parameter
-
 
 
 def QoE_Function(delay, max_delay, unfinish_task, ue_energy_state, ue_comp_energy, ue_trans_energy, edge_comp_energy, ue_idle_energy):
@@ -43,30 +33,7 @@ def QoE_Function(delay, max_delay, unfinish_task, ue_energy_state, ue_comp_energ
         QoE = Reward - cost
 
     return QoE
- 
-"""
-def Drop_Count(ue_RL_list, episode):
-    #print(env.unfinish_task.shape)
-    drrop_delay10 = 0 
-    drrop = 0
-    for time_index in range(100):   
-        drrop = drrop + sum(env.unfinish_task[time_index])
 
-    for i in range(len(ue_RL_list)):
-        for j in range(len(ue_RL_list[i].delay_store[episode])):
-            if ue_RL_list[i].delay_store[episode][j] == 10:
-                drrop_delay10 = drrop_delay10+1
-
-    #print("-----------", drrop_delay10, drrop)
-    return drrop
-
-
-def Cal_QoE(ue_RL_list, episode):
-    episode_sum_reward = sum(sum(ue_RL.reward_store[episode]) for ue_RL in ue_RL_list)
-    avg_episode_sum_reward = episode_sum_reward / len(ue_RL_list)
-    #print(f"reward: {avg_episode_sum_reward}")
-    return avg_episode_sum_reward
-"""
 def Drop_Count(ue_RL_list, episode):
     drrop_delay10 = 0 
     drrop = 0
@@ -105,7 +72,6 @@ def Cal_QoE(ue_RL_list, episode):
 
     avg_episode_sum_reward = sum(episode_rewards) / len(ue_RL_list)
     return avg_episode_sum_reward
-
 
 def Cal_Delay(ue_RL_list, episode):
     avg_delay_in_episode = []
@@ -152,54 +118,6 @@ def Cal_Successful_Offloads(ue_RL_list, episode):
         return 0.0
 
     return sum(offloads) / len(ue_RL_list)  # average per UE
-
-"""
-
-def Cal_Delay(ue_RL_list, episode):
-
-    avg_delay_in_episode = []
-    for i in range(len(ue_RL_list)):
-        for j in range(len(ue_RL_list[i].delay_store[episode])):
-            if ue_RL_list[i].delay_store[episode][j] != 0:
-                avg_delay_in_episode.append(ue_RL_list[i].delay_store[episode][j])
-    avg_delay_in_episode = (sum(avg_delay_in_episode)/len(avg_delay_in_episode))
-    return avg_delay_in_episode
-
-
-
-def Cal_Energy(ue_RL_list, episode):
-    energy_ue_list = [sum(ue_RL.energy_store[episode]) for ue_RL in ue_RL_list]
-    avg_energy_in_episode = sum(energy_ue_list) / len(energy_ue_list)
-    #print(f"energy: {avg_energy_in_episode}")
-    return avg_energy_in_episode
-
-def Cal_Successful_Offloads(ue_RL_list, episode):
-    offloads = []
-    for ue in ue_RL_list:
-        # if you stored an 'offload_store' per episode
-        offloads.append(sum(ue.offload_store[episode]))
-    return sum(offloads) / len(ue_RL_list)  # average per UE
-
-"""
-
-'''
-def cal_reward(ue_RL_list):
-    total_sum_reward = 0
-    num_episodes = 0
-    for ue_num, ue_RL in enumerate(ue_RL_list):
-        print("________________________")
-        print("ue_num:", ue_num)
-        print("________________________")
-        for episode, reward in enumerate(ue_RL.reward_store):
-            print("episode:", episode)
-            reward_sum = sum(reward)
-            print(reward_sum)
-            total_sum_reward += reward_sum
-            num_episodes += 1
-    avg_reward = total_sum_reward / num_episodes
-    print(total_sum_reward, avg_reward)
-
-'''
 
 def train(ue_RL_list, NUM_EPISODE):
     avg_QoE_list = []
@@ -260,11 +178,6 @@ def train(ue_RL_list, NUM_EPISODE):
 
         #print("Sum_Arrived_Task_Size:", int(sum(Check)))
 
-       
-
-
-
-
         #print(bitarrive_dens) = [Config.TASK_COMP_DENS[np.random.randint(0, len(Config.TASK_COMP_DENS))] ]
 
         # OBSERVATION MATRIX SETTING
@@ -317,10 +230,13 @@ def train(ue_RL_list, NUM_EPISODE):
             process_delay = env.process_delay
             unfinish_task = env.unfinish_task
 
+            
+
             #Track the successful offloads:
             for ue_index in range(env.n_ue):
                 # Example: action==1 means "offload to fog"
-                if action_all[ue_index] == 1 and (env.edge_bit_processed[env.time_count-1, ue_index] > 0).any():
+                processed_bits = env.edge_bit_processed[env.time_count -1, ue_index]
+                if action_all[ue_index] > 0: # and np.sum(processed_bits) > 0:
                     success_flag = 1
                 else:
                     success_flag = 0
@@ -330,6 +246,8 @@ def train(ue_RL_list, NUM_EPISODE):
                     env.time_count-1,   # current timestep
                     success_flag
                 )
+                print(f"Episode {episode}, t={env.time_count-1}, UE {ue_index}, action={action_all[ue_index]}, processed={processed_bits}")
+                
             
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
@@ -381,60 +299,6 @@ def train(ue_RL_list, NUM_EPISODE):
 
                         reward_indicator[time_index, ue_index] = 1
 
-            '''
-
-            # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
-            for ue_index in range(env.n_ue):
-    
-                history[env.time_count - 1][ue_index]['observation'] = observation_all[ue_index, :]
-                history[env.time_count - 1][ue_index]['lstm'] = np.squeeze(lstm_state_all[ue_index, :])
-                history[env.time_count - 1][ue_index]['action'] = action_all[ue_index]
-                history[env.time_count - 1][ue_index]['observation_'] = observation_all_[ue_index]
-                history[env.time_count - 1][ue_index]['lstm_'] = np.squeeze(lstm_state_all_[ue_index,:])
-
-                update_index = np.where((1 - reward_indicator[:,ue_index]) * env.process_delay[:,ue_index] > 0)[0]
-
-
-                if len(update_index) != 0:
-                    for time_index in range(len(update_index)):
-                        reward = QoE_Function(
-                            env.ue_comp_energy[time_index, ue_index],
-                            env.ue_tran_energy [time_index, ue_index],
-                            env.edge_comp_energy[time_index, ue_index],
-                            env.ue_idle_energy[time_index, ue_index],
-                            env.process_delay[time_index, ue_index],
-                            env.max_delay,
-                            env.unfinish_task[time_index, ue_index],
-                            env.ue_energy_state[ue_index]
-                        )
-                        ue_RL_list[ue_index].store_transition(
-                            history[time_index][ue_index]['observation'],
-                            history[time_index][ue_index]['lstm'],
-                            history[time_index][ue_index]['action'],
-                            reward,
-                            history[time_index][ue_index]['observation_'],
-                            history[time_index][ue_index]['lstm_']
-                        )
-                        ue_RL_list[ue_index].do_store_reward(
-                            episode,
-                            time_index,
-                            reward
-                        )
-                        ue_RL_list[ue_index].do_store_delay(
-                            episode,
-                            time_index,
-                            env.process_delay[time_index, ue_index]
-                        )
-                        ue_RL_list[ue_index].do_store_energy(
-                            episode,
-                            time_index,
-                            env.ue_comp_energy[time_index, ue_index],
-                            env.ue_tran_energy [time_index, ue_index],
-                            env.edge_comp_energy[time_index, ue_index],
-                            env.ue_idle_energy[time_index, ue_index]
-                        )
-                        reward_indicator[time_index, ue_index] = 1
-            '''
 
             # ADD STEP (one step does not mean one store)
             RL_step += 1
