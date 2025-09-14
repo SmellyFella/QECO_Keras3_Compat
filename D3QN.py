@@ -20,8 +20,8 @@ class DuelingDoubleDeepQNetwork:
                  batch_size=32,
                  e_greedy_increment= 0.00025,
                  n_lstm_step = 10,
-                 dueling = True,
-                 double_q = True,
+                 dueling = False,
+                 double_q = False,
                  N_L1 = 20,
                  N_lstm = 20):
 
@@ -333,4 +333,5 @@ class DuelingDoubleDeepQNetwork:
         if latest_ckpt is not None:
 
             self.saver.restore(self.sess, latest_ckpt)
+
 
