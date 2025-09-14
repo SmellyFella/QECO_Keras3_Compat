@@ -214,8 +214,9 @@ def train(ue_RL_list, NUM_EPISODE):
     RL_step = 0
     a = 1
 
-    #adding a list to track successful offloads
+    #adding a list to track successful offloads and list to store number of tasks arriving
     avg_offload_success_list = []
+    tasks_arrived_list = []
 
     for episode in range(NUM_EPISODE):
 
@@ -251,7 +252,7 @@ def train(ue_RL_list, NUM_EPISODE):
 
         print("Num_Task_Arrive: ", test)
 
-
+        tasks_arrived_list.append(test)
 
         Check = []
         for i in range(len(bitarrive_size)):
@@ -553,7 +554,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     avg_energy_list_in_episode.append(Cal_Energy(ue_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(5, 1, figsize=(10, 20))
+                    fig, axs = plt.subplots(6, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
@@ -595,6 +596,21 @@ def train(ue_RL_list, NUM_EPISODE):
                     axs[4].set_xlabel('Episode')
                     axs[4].grid(True, linestyle='--', alpha=0.7)
                     axs[4].legend()
+
+                    # Subplot for tasks arrived vs energy consumption
+                    energy_per_task = [
+                      e/t if t > 0 else 0 
+                      for e, t in zip(energy_cons_list, tasks_arrived_list)
+                    ]
+
+
+
+                    axs[5].plot(energy_per_task, marker='x', linestyle='-', color='g', label='Tasks vs Energy')
+                    axs[5].set_title('', fontsize=14)
+                    axs[5].set_ylabel('Energy Consumption')
+                    axs[5].set_xlabel('Tasks Arrived')
+                    axs[5].grid(True, linestyle='--', alpha=0.7)
+                    axs[5].legend()
 
                     # Save the figure to a file
                     plt.tight_layout()
