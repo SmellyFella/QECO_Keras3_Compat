@@ -554,7 +554,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     avg_energy_list_in_episode.append(Cal_Energy(ue_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(6, 1, figsize=(10, 20))
+                    fig, axs = plt.subplots(7, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
@@ -603,14 +603,25 @@ def train(ue_RL_list, NUM_EPISODE):
                       for e, t in zip(energy_cons_list, tasks_arrived_list)
                     ]
 
-
-
                     axs[5].plot(energy_per_task, marker='x', linestyle='-', color='g', label='Tasks vs Energy')
                     axs[5].set_title('', fontsize=14)
-                    axs[5].set_ylabel('Energy Consumption')
-                    axs[5].set_xlabel('Tasks Arrived')
+                    axs[5].set_ylabel('Energy Consumption / task arrived')
+                    axs[5].set_xlabel('Episode')
                     axs[5].grid(True, linestyle='--', alpha=0.7)
                     axs[5].legend()
+
+                    # Subplot for task vs time 
+                    delay_per_task = [
+                      e/t if t > 0 else 0 
+                      for e, t in zip(avg_delay_list, tasks_arrived_list)
+                    ]
+
+                    axs[6].plot(delay_per_task, marker='x', linestyle='-', color='g', label='Task vs Time')
+                    axs[6].set_title('', fontsize=14)
+                    axs[6].set_ylabel('Delay / task arrived')
+                    axs[6].set_xlabel('Episodes')
+                    axs[6].grid(True, linestyle='--', alpha=0.7)
+                    axs[6].legend()
 
                     # Save the figure to a file
                     plt.tight_layout()
