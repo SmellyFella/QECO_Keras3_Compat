@@ -103,8 +103,8 @@ def Cal_Energy(ue_RL_list, episode):
         return 0.0
 
     return sum(energy_ue_list) / len(energy_ue_list)
-"""
-def Cal_Successful_Offloads(ue_RL_list, episode):
+
+def Cal_Total_Offloads(ue_RL_list, episode):
     offloads = []
 
     for ue in ue_RL_list:
@@ -118,7 +118,7 @@ def Cal_Successful_Offloads(ue_RL_list, episode):
         return 0.0
 
     return sum(offloads) / len(ue_RL_list)  # average per UE
-"""
+
 def train(ue_RL_list, NUM_EPISODE):
     avg_QoE_list = []
     avg_delay_list = []
@@ -133,7 +133,7 @@ def train(ue_RL_list, NUM_EPISODE):
     a = 1
 
     #adding a list to track successful offloads and list to store number of tasks arriving
-    #avg_offload_success_list = []
+    total_offload_attempt_list = []
     tasks_arrived_list = []
 
     offload_success_list = []
@@ -329,8 +329,8 @@ def train(ue_RL_list, NUM_EPISODE):
                 with open("Drop.txt", 'a') as f:
                             f.write('\n' + str(Drop_Count(ue_RL_list, episode)))
 
-                #with open("Success.txt", 'a') as f:
-               #             f.write('\n' + str(Cal_Successful_Offloads(ue_RL_list, episode)))
+                
+               
 
 
 
@@ -400,7 +400,7 @@ def train(ue_RL_list, NUM_EPISODE):
                 avg_energy = Cal_Energy(ue_RL_list, episode)
                 avg_QoE   = Cal_QoE(ue_RL_list, episode)
                 
-                #avg_success = Cal_Successful_Offloads(ue_RL_list, episode)
+                total_offloads = Cal_Total_Offloads(ue_RL_list, episode)
 
 
                 avg_QoE_list.append(avg_QoE)
@@ -408,7 +408,7 @@ def train(ue_RL_list, NUM_EPISODE):
                 energy_cons_list.append(avg_energy)
                 num_drop_list.append(env.drop_trans_count+env.drop_edge_count+env.drop_ue_count)
 
-                #avg_offload_success_list.append(avg_success)
+                total_offload_attempt_list.append(total_offloads)
 
                 avg_reward_list.append(-(Cal_QoE(ue_RL_list, episode)))
 
@@ -421,7 +421,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     avg_energy_list_in_episode.append(Cal_Energy(ue_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(7, 1, figsize=(10, 20))
+                    fig, axs = plt.subplots(8, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
@@ -488,7 +488,26 @@ def train(ue_RL_list, NUM_EPISODE):
                     axs[6].set_ylabel('Delay / task arrived')
                     axs[6].set_xlabel('Episodes')
                     axs[6].grid(True, linestyle='--', alpha=0.7)
-                    axs[6].legend()
+                    axs[6].legend()'
+
+                    #Subplot for task vs offload ratio
+                    offload_ratio = [
+                        e/t if t > 0 else 0 
+                        for e, t in zip(offload_success_list, total_offload_attempt_list)
+                    ]
+                    
+                    offload_ratio_per_task = [
+                      e/t if t > 0 else 0 
+                      for e, t in zip(offload_ratio, tasks_arrived_list)
+                    ]
+
+                    axs[7].plot(offload_ratio_per_task, marker='x', linestyle='-', color='g', label='Task vs Offload ratio')
+                    axs[7].set_title('', fontsize=14)
+                    axs[7].set_ylabel('offload ratio / task arrived')
+                    axs[7].set_xlabel('Episodes')
+                    axs[7].grid(True, linestyle='--', alpha=0.7)
+                    axs[7].legend()'
+                    
 
                     # Save the figure to a file
                     plt.tight_layout()
@@ -548,6 +567,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(ue_RL_list, Config.N_EPISODE)
+
 
 
 
