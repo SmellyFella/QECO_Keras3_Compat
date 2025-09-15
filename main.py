@@ -103,7 +103,7 @@ def Cal_Energy(ue_RL_list, episode):
         return 0.0
 
     return sum(energy_ue_list) / len(energy_ue_list)
-
+"""
 def Cal_Successful_Offloads(ue_RL_list, episode):
     offloads = []
 
@@ -118,7 +118,7 @@ def Cal_Successful_Offloads(ue_RL_list, episode):
         return 0.0
 
     return sum(offloads) / len(ue_RL_list)  # average per UE
-
+"""
 def train(ue_RL_list, NUM_EPISODE):
     avg_QoE_list = []
     avg_delay_list = []
@@ -133,8 +133,10 @@ def train(ue_RL_list, NUM_EPISODE):
     a = 1
 
     #adding a list to track successful offloads and list to store number of tasks arriving
-    avg_offload_success_list = []
+    #avg_offload_success_list = []
     tasks_arrived_list = []
+
+    offload_success_list = []
 
     for episode in range(NUM_EPISODE):
 
@@ -230,7 +232,7 @@ def train(ue_RL_list, NUM_EPISODE):
             process_delay = env.process_delay
             unfinish_task = env.unfinish_task
 
-            
+            """
 
             #Track the successful offloads:
             for ue_index in range(env.n_ue):
@@ -246,9 +248,9 @@ def train(ue_RL_list, NUM_EPISODE):
                     env.time_count-1,   # current timestep
                     success_flag
                 )
-                print(f"Episode {episode}, t={env.time_count-1}, UE {ue_index}, action={action_all[ue_index]}, processed={processed_bits}")
+                #print(f"Episode {episode}, t={env.time_count-1}, UE {ue_index}, action={action_all[ue_index]}, processed={processed_bits}")
                 
-            
+           """ 
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
             for ue_index in range(env.n_ue):
@@ -327,8 +329,8 @@ def train(ue_RL_list, NUM_EPISODE):
                 with open("Drop.txt", 'a') as f:
                             f.write('\n' + str(Drop_Count(ue_RL_list, episode)))
 
-                with open("Success.txt", 'a') as f:
-                            f.write('\n' + str(Cal_Successful_Offloads(ue_RL_list, episode)))
+                #with open("Success.txt", 'a') as f:
+               #             f.write('\n' + str(Cal_Successful_Offloads(ue_RL_list, episode)))
 
 
 
@@ -398,7 +400,7 @@ def train(ue_RL_list, NUM_EPISODE):
                 avg_energy = Cal_Energy(ue_RL_list, episode)
                 avg_QoE   = Cal_QoE(ue_RL_list, episode)
                 
-                avg_success = Cal_Successful_Offloads(ue_RL_list, episode)
+                #avg_success = Cal_Successful_Offloads(ue_RL_list, episode)
 
 
                 avg_QoE_list.append(avg_QoE)
@@ -406,10 +408,11 @@ def train(ue_RL_list, NUM_EPISODE):
                 energy_cons_list.append(avg_energy)
                 num_drop_list.append(env.drop_trans_count+env.drop_edge_count+env.drop_ue_count)
 
-                avg_offload_success_list.append(avg_success)
+                #avg_offload_success_list.append(avg_success)
 
                 avg_reward_list.append(-(Cal_QoE(ue_RL_list, episode)))
 
+                offload_success_list.append(env.successful_offloads)
 
                 # Append metrics to tracking lists
                 if episode % 10 == 0:
@@ -454,7 +457,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     axs[3].legend()
 
                     # Subplot for Successful Offloads
-                    axs[4].plot(avg_offload_success_list, marker='x', linestyle='-', color='y', label='Successes')
+                    axs[4].plot(offload_success_list, marker='x', linestyle='-', color='y', label='Successes')
                     axs[4].set_title('', fontsize=14)
                     axs[4].set_ylabel('Successful Offloads')
                     axs[4].set_xlabel('Episode')
