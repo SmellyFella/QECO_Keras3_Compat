@@ -232,7 +232,7 @@ def train(ue_RL_list, NUM_EPISODE):
             process_delay = env.process_delay
             unfinish_task = env.unfinish_task
 
-            """
+            
 
             #Track the successful offloads:
             for ue_index in range(env.n_ue):
@@ -250,7 +250,7 @@ def train(ue_RL_list, NUM_EPISODE):
                 )
                 #print(f"Episode {episode}, t={env.time_count-1}, UE {ue_index}, action={action_all[ue_index]}, processed={processed_bits}")
                 
-           """ 
+          
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
             for ue_index in range(env.n_ue):
@@ -488,7 +488,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     axs[6].set_ylabel('Delay / task arrived')
                     axs[6].set_xlabel('Episodes')
                     axs[6].grid(True, linestyle='--', alpha=0.7)
-                    axs[6].legend()'
+                    axs[6].legend()
 
                     #Subplot for task vs offload ratio
                     offload_ratio = [
@@ -496,6 +496,7 @@ def train(ue_RL_list, NUM_EPISODE):
                         for e, t in zip(offload_success_list, total_offload_attempt_list)
                     ]
                     
+                    print(offload_ratio)
                     offload_ratio_per_task = [
                       e/t if t > 0 else 0 
                       for e, t in zip(offload_ratio, tasks_arrived_list)
@@ -506,7 +507,7 @@ def train(ue_RL_list, NUM_EPISODE):
                     axs[7].set_ylabel('offload ratio / task arrived')
                     axs[7].set_xlabel('Episodes')
                     axs[7].grid(True, linestyle='--', alpha=0.7)
-                    axs[7].legend()'
+                    axs[7].legend()
                     
 
                     # Save the figure to a file
