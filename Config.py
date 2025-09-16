@@ -1,18 +1,18 @@
 class Config(object):
     
     # System setup
-    N_UE             = 20                   # Number of Mobile Devices
-    N_EDGE           = 2                    # Number of Edge Servers
-    UE_COMP_CAP      = 2.6                  # Mobile Device Computation Capacity
-    UE_TRAN_CAP      = 14                   # Mobile Device Transmission Capacity
-    EDGE_COMP_CAP    = 42                   # Edge Servers Computation Capacity
+    N_METER             = 20                   # Number of Mobile Devices
+    N_SUBSTATION           = 2                    # Number of Edge Servers
+    METER_COMP_CAP      = 2.6                  # Mobile Device Computation Capacity
+    METER_TRAN_CAP      = 14                   # Mobile Device Transmission Capacity
+    SUBSTATION_COMP_CAP    = 42                   # Edge Servers Computation Capacity
 
     # Energy consumption settings
-    UE_ENERGY_STATE  = [0.25, 0.50, 0.75]   # Ultra-power-saving mode, Power-saving mode, Performance mode
-    UE_COMP_ENERGY   = 2                    # Computation Power of Mobile Device
-    UE_TRAN_ENERGY   = 2.3                  # Transmission Power of Mobile Device
-    UE_IDLE_ENERGY   = 0.1                  # Standby power of Mobile Device
-    EDGE_COMP_ENERGY = 5                    # Computation Power of Edge Server
+    METER_ENERGY_STATE  = [0.25, 0.50, 0.75]   # Ultra-power-saving mode, Power-saving mode, Performance mode
+    METER_COMP_ENERGY   = 2                    # Computation Power of Mobile Device
+    METER_TRAN_ENERGY   = 2.3                  # Transmission Power of Mobile Device
+    METER_IDLE_ENERGY   = 0.1                  # Standby power of Mobile Device
+    SUBSTATION_COMP_ENERGY = 5                    # Computation Power of Edge Server
 
     # Task Requrement
     TASK_COMP_DENS   = [0.197, 0.297, 0.397]      # Task Computation Density
