@@ -275,7 +275,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_energy_state[meter_index],
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
-                                                                                env.meter_comp_energy[time_index, meter_index],
+                                                                                env.substation_comp_energy[time_index, meter_index],
                                                                                 env.meter_idle_energy[time_index, meter_index]),
                                                                 history[time_index][meter_index]['observation_'],
                                                                 history[time_index][meter_index]['lstm_'])
@@ -286,7 +286,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_energy_state[meter_index],
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
-                                                                                env.meter_comp_energy[time_index, meter_index],
+                                                                                env.substation_comp_energy[time_index, meter_index],
                                                                                 env.meter_idle_energy[time_index, meter_index]))
                         meter_RL_list[meter_index].do_store_delay(episode, time_index,
                                                               process_delay[time_index, meter_index])
@@ -568,6 +568,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
