@@ -1,4 +1,4 @@
-from SmartGrid_Env import SmartGrid
+from SmartGrid_env import SmartGrid
 from D3QN import DuelingDoubleDeepQNetwork
 from Config import Config
 import matplotlib.pyplot as plt
@@ -13,13 +13,13 @@ def normalize(parameter, minimum, maximum):
     return normalized_parameter
 
 
-def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, edge_comp_energy, meter_idle_energy):
+def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy):
     
-    edge_energy  = next((e for e in edge_comp_energy if e != 0), 0)
+    substation_energy  = next((e for e in substation_comp_energy if e != 0), 0)
     idle_energy = next((e for e in meter_idle_energy if e != 0), 0)
 
-    energy_cons = meter_comp_energy + meter_trans_energy #+ edge_energy + idle_energy
-    #print(meter_comp_energy , meter_trans_energy , edge_energy , idle_energy)
+    energy_cons = meter_comp_energy + meter_trans_energy #+ substation_energy + idle_energy
+    #print(meter_comp_energy , meter_trans_energy , substation_energy , idle_energy)
     #print(meter_energy_state, delay, energy_cons)
     
     scaled_energy = normalize(energy_cons, 0, 20)*10
@@ -237,7 +237,7 @@ def train(meter_RL_list, NUM_EPISODE):
             #Track the successful offloads:
             for meter_index in range(env.n_meter):
                 # Example: action==1 means "offload to fog"
-                processed_bits = env.edge_bit_processed[env.time_count -1, meter_index]
+                processed_bits = env.meter_bit_processed[env.time_count -1, meter_index]
                 if action_all[meter_index] > 0: # and np.sum(processed_bits) > 0:
                     success_flag = 1
                 else:
@@ -275,7 +275,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_energy_state[meter_index],
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
-                                                                                env.edge_comp_energy[time_index, meter_index],
+                                                                                env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_idle_energy[time_index, meter_index]),
                                                                 history[time_index][meter_index]['observation_'],
                                                                 history[time_index][meter_index]['lstm_'])
@@ -286,7 +286,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_energy_state[meter_index],
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
-                                                                                env.edge_comp_energy[time_index, meter_index],
+                                                                                env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_idle_energy[time_index, meter_index]))
                         meter_RL_list[meter_index].do_store_delay(episode, time_index,
                                                               process_delay[time_index, meter_index])
@@ -296,7 +296,7 @@ def train(meter_RL_list, NUM_EPISODE):
                             time_index,
                             env.meter_comp_energy[time_index, meter_index],
                             env.meter_tran_energy [time_index, meter_index],
-                            env.edge_comp_energy[time_index, meter_index],
+                            env.substation_comp_energy[time_index, meter_index],
                             env.meter_idle_energy[time_index, meter_index])
 
                         reward_indicator[time_index, meter_index] = 1
@@ -391,10 +391,10 @@ def train(meter_RL_list, NUM_EPISODE):
                 meter_bit_transmitted = sum(sum(env.meter_bit_transmitted))
                 meter_tran_energy = sum(sum(env.meter_tran_energy))
 
-                # edge energy
-                edge_bit_processed = sum(sum(env.edge_bit_processed))
-                edge_comp_energy = sum(sum(env.edge_comp_energy))
-                meter_idle_energy = sum(sum(env.meter_idle_energy))
+                # substation energy
+                substation_bit_processed = sum(sum(env.substation_bit_processed))
+                substation_comp_energy = sum(sum(env.substation_comp_energy))
+                meter_idle_energy = sum(sum(env.substation_idle_energy))
 
                 avg_delay  = Cal_Delay(meter_RL_list, episode)
                 avg_energy = Cal_Energy(meter_RL_list, episode)
@@ -406,7 +406,7 @@ def train(meter_RL_list, NUM_EPISODE):
                 avg_QoE_list.append(avg_QoE)
                 avg_delay_list.append(avg_delay)
                 energy_cons_list.append(avg_energy)
-                num_drop_list.append(env.drop_trans_count+env.drop_edge_count+env.drop_meter_count)
+                num_drop_list.append(env.drop_trans_count+env.drop_substation_count+env.drop_meter_count)
 
                 total_offload_attempt_list.append(total_offloads)
 
@@ -520,16 +520,16 @@ def train(meter_RL_list, NUM_EPISODE):
 
                 print("SystemPerformance: ---------------------------------------------------------------------")
                 #print("Num_Completed :  ", )
-                print("Num_Dropped   :  ", env.drop_trans_count+env.drop_edge_count+env.drop_meter_count, "[Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_meter_count,"]")
+                print("Num_Dropped   :  ", env.drop_trans_count+env.drop_substation_count+env.drop_meter_count, "[Trans_Drop: ", env.drop_trans_count, "Substation_Drop: ", env.drop_substation_count, "UE_Drop: ", env.drop_meter_count,"]")
                 print("Avg_Delay     :  ", "%0.1f" %avg_delay)
                 print("Avg_Energy    :  ", "%0.1f" %avg_energy)
                 print("Avg_QoE       :  ", "%0.1f" %avg_QoE)
                 print("EnergyCosumption: ----------------------------------------------------------------------")
                 print("Local         :  ", "%0.1f" %meter_comp_energy, "[meter_bit_processed:", int(meter_bit_processed),"]")
                 print("Trans         :  ", "%0.1f" %meter_tran_energy, "[meter_bit_transmitted:", int(meter_bit_transmitted),"]")
-                print("Edges         :  ", "%0.1f" % sum(meter_idle_energy), "[edge_bit_processed :", int(sum(edge_bit_processed)),"]")
+                print("Substations         :  ", "%0.1f" % sum(meter_idle_energy), "[substation_bit_processed :", int(sum(substation_bit_processed)),"]")
                 #print("--------------------------------------------------------------------------------------------------------")
-                #print("Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_meter_count)
+                #print("Trans_Drop: ", env.drop_trans_count, "Substation_Drop: ", env.drop_substation_count, "UE_Drop: ", env.drop_meter_count)
                 #print("Drop_Count: ",Drop_Count(meter_RL_list, episode))
 
                 break # Training Finished
@@ -542,7 +542,7 @@ if __name__ == "__main__":
 
     # GENERATE MULTIPLE CLASSES FOR RL
     meter_RL_list = list()
-    for meter in range(Config.N_UE):
+    for meter in range(Config.N_METER):
         meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
                                                     learning_rate       = Config.LEARNING_RATE,
                                                     reward_decay        = Config.REWARD_DECAY,
@@ -568,6 +568,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
