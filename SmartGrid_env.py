@@ -36,6 +36,8 @@ class SmartGrid:
 
         self.task_criticality = np.zeros([self.n_time, self.n_meter], dtype=int)
 
+        self.task_deadlines = np.zeros([self.n_time, self.n_meter], dtype=int)
+
         # Tansmission line and Substation feeder capacity
         self.line_cap_meter   = Config.METER_COMP_CAP * np.ones(self.n_meter) * self.duration
         self.line_cap_substation = Config.SUBSTATION_COMP_CAP * np.ones([self.n_substation]) * self.duration
@@ -470,7 +472,23 @@ class SmartGrid:
                                                             / meter_feeder_cap[meter_action_offload[meter_index]]) - 1,
                                                             self.time_count + self.max_delay - 1])
             
-
+            # Calculate communication delay
+        comm_delay = self.FIXED_COMM_DELAY
+    
+        # Estimate processing delay based on current load
+        proc_delay = PROC_DELAY_FACTOR * self.current_load()
+    
+        total_delay = comm_delay + proc_delay
+    
+        # Check deadlines for each task
+        for meter_idx in range(self.n_meter):
+            for t_idx, task_size in enumerate(self.active_tasks[meter_idx]):
+                if task_size > 0:
+                    deadline = self.task_deadlines[t_idx, meter_idx]
+                    if total_delay > deadline:
+                        # Mark as dropped or failed
+                        self.failed_tasks += 1
+                        self.active_tasks[meter_idx][t_idx] = 0
 
 
         # COMPUTE CONGESTION (FOR NEXT TIME SLOT)
@@ -515,6 +533,7 @@ class SmartGrid:
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
 
         return Meters_OBS_, Meters_lstm_state_, done
+
 
 
 
