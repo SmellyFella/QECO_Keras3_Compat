@@ -144,6 +144,7 @@ def train(meter_RL_list, NUM_EPISODE):
         print("Episode  :", episode, )
         print("Epsilon  :", meter_RL_list[0].epsilon)
 
+        """
         # BITRATE ARRIVAL
         #Below replaced with periodic instead of probabilistic bit rate to better emulate smart meters
         ##bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_meter])
@@ -178,10 +179,6 @@ def train(meter_RL_list, NUM_EPISODE):
         for i in range(len(bitarrive_size)):
             Check.append(sum(bitarrive_size[i]))
 
-        #print("Sum_Arrived_Task_Size:", int(sum(Check)))
-
-        #print(bitarrive_dens) = [Config.TASK_COMP_DENS[np.random.randint(0, len(Config.TASK_COMP_DENS))] ]
-
         # OBSERVATION MATRIX SETTING
         history = list()
         for time_index in range(env.n_time):
@@ -200,7 +197,66 @@ def train(meter_RL_list, NUM_EPISODE):
         #print(observation_all)
         #print(lstm_state_all)
 
+        """
+        ###BELOW IS GPT GENERATED SMARTGRID STYLE TASK GENERATION:
+        # Generate smart-grid-like demand patterns instead of purely random
+        bitarrive_size = np.zeros([env.n_time, env.n_meter])
+        
+        hours = np.arange(env.n_time) % 24
+        # Base demand curve: peaks around 8 AM and 7 PM
+        base_demand = 0.5 + 0.5 * (
+            np.sin((np.pi / 12) * (hours - 8))**2 + np.sin((np.pi / 12) * (hours - 19))**2
+        )
+        
+        for meter in range(env.n_meter):
+            for t in range(env.n_time):
+                # Scale demand to your min/max arrival sizes
+                scaled = env.min_arrive_size + base_demand[t] * (env.max_arrive_size - env.min_arrive_size)
+                # Add small noise for variability
+                noise = np.random.normal(0, 0.05 * scaled)
+                bitarrive_size[t, meter] = max(0, scaled + noise)
+        
+        # Optional: enforce reporting only at smart meter intervals
+        mask = np.zeros_like(bitarrive_size)
+        mask[::env.smart_meter_period, :] = 1
+        bitarrive_size *= mask
+        
+        # Compute computational density (urgency) based on demand level
+        bitarrive_dens = np.zeros([env.n_time, env.n_meter])
+        for i in range(env.n_time):
+            for j in range(env.n_meter):
+                if bitarrive_size[i, j] > 0:
+                    # Higher demand → pick a denser requirement
+                    if bitarrive_size[i, j] > (env.max_arrive_size + env.min_arrive_size) / 2:
+                        bitarrive_dens[i, j] = max(Config.TASK_COMP_DENS)
+                    else:
+                        bitarrive_dens[i, j] = np.random.choice(Config.TASK_COMP_DENS)
+        
+        # Count arrivals for debugging
+        test = np.count_nonzero(bitarrive_size)
+        print("Num_Task_Arrive:", test)
+        tasks_arrived_list.append(test)
 
+        # OBSERVATION MATRIX SETTING
+        history = list()
+        for time_index in range(env.n_time):
+            history.append(list())
+            for meter_index in range(env.n_meter):
+                tmp_dict = {'observation': np.zeros(env.n_features),
+                            'lstm': np.zeros(env.n_lstm_state),
+                            'action': np.nan,
+                            'observation_': np.zeros(env.n_features),
+                            'lstm_': np.zeros(env.n_lstm_state)}
+                history[time_index].append(tmp_dict)
+        reward_indicator = np.zeros([env.n_time, env.n_meter])
+
+        # INITIALIZE OBSERVATION
+        observation_all, lstm_state_all = env.reset(bitarrive_size, bitarrive_dens)
+        #print(observation_all)
+        #print(lstm_state_all)
+        
+        ###END OF GPT PROVIDED CODE
+        
         # TRAIN DRL
         while True:
     
@@ -568,6 +624,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
