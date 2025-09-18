@@ -394,7 +394,7 @@ def train(meter_RL_list, NUM_EPISODE):
                 # substation energy
                 substation_bit_processed = sum(sum(env.substation_bit_processed))
                 substation_comp_energy = sum(sum(env.substation_comp_energy))
-                meter_idle_energy = sum(sum(env.substation_idle_energy))
+                meter_idle_energy = sum(sum(env.meter_idle_energy))
 
                 avg_delay  = Cal_Delay(meter_RL_list, episode)
                 avg_energy = Cal_Energy(meter_RL_list, episode)
@@ -568,6 +568,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
