@@ -78,9 +78,9 @@ class SmartGrid:
 
         # Task indicator initialization
         self.local_process_task = [{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
-                                    'TIME': np.nan, 'EDGE': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
+                                    'TIME': np.nan, '': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
         self.local_transmit_task = [{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
-                                     'TIME': np.nan, 'EDGE': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
+                                     'TIME': np.nan, 'SUBSTATION': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
         self.substation_process_task = [[{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
                                     'TIME': np.nan, 'REMAIN': np.nan} for _ in range(self.n_substation)] for _ in range(self.n_meter)]
 
@@ -131,9 +131,9 @@ class SmartGrid:
         self.substation_drop = np.zeros([self.n_meter, self.n_substation])
 
         self.local_process_task = [{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
-                                    'TIME': np.nan, 'EDGE': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
+                                    'TIME': np.nan, 'SUBSTATION': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
         self.local_transmit_task = [{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
-                                     'TIME': np.nan, 'EDGE': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
+                                     'TIME': np.nan, 'SUBSTATION': np.nan, 'REMAIN': np.nan} for _ in range(self.n_meter)]
         self.substation_process_task = [[{'DIV': np.nan, 'METER_ID': np.nan, 'TASK_ID': np.nan, 'SIZE': np.nan,
                                     'TIME': np.nan, 'REMAIN': np.nan} for _ in range(self.n_substation)] for _ in range(self.n_meter)]
 
@@ -186,7 +186,7 @@ class SmartGrid:
                 'SIZE': meter_arrive_task_size,
                 'DENS': meter_arrive_task_dens,
                 'TIME': self.time_count,
-                'EDGE': meter_action_offload[meter_index],
+                'SUBSTATION': meter_action_offload[meter_index],
             }
 
             if meter_action_local[meter_index] == 1:
@@ -263,7 +263,7 @@ class SmartGrid:
                                                                     / (meter_line_cap / meter_arrive_task_dens)) - 1,
                                                                     self.time_count + self.max_delay - 1])
 
-        # edge QUEUE UPDATE =========================
+        # substation QUEUE UPDATE =========================
         for meter_index in range(self.n_meter):
             #meter_comp_density = self.comp_density
 
@@ -363,7 +363,7 @@ class SmartGrid:
                 'SIZE': meter_arrive_task_size,
                 'DENS': meter_arrive_task_dens,
                 'TIME': self.time_count,
-                'EDGE': meter_action_offload[meter_index],
+                'SUBSTATION': meter_action_offload[meter_index],
             }
 
 
@@ -393,7 +393,7 @@ class SmartGrid:
                                 self.local_transmit_task[meter_index]['SIZE'] = get_task['SIZE']
                                 self.local_transmit_task[meter_index]['DENS'] = get_task['DENS']
                                 self.local_transmit_task[meter_index]['TIME'] = get_task['TIME']
-                                self.local_transmit_task[meter_index]['EDGE'] = int(get_task['EDGE'])
+                                self.local_transmit_task[meter_index]['SUBSTATION'] = int(get_task['SUBSTATION'])
                                 self.local_transmit_task[meter_index]['REMAIN'] = self.local_transmit_task[meter_index]['SIZE']
                                 self.local_transmit_task[meter_index]['DIV'] = get_task['DIV']
                                 break
@@ -406,36 +406,36 @@ class SmartGrid:
                 # PROCESS
                 if self.local_transmit_task[meter_index]['REMAIN'] > 0:
 
-                    if self.local_transmit_task[meter_index]['REMAIN'] >= meter_feeder_cap[self.local_transmit_task[meter_index]['EDGE']]:
-                        self.meter_tran_energy[self.local_transmit_task[meter_index]['TIME'], meter_index] += meter_feeder_cap[self.local_transmit_task[meter_index]['EDGE']] * self.meter_p_tran
+                    if self.local_transmit_task[meter_index]['REMAIN'] >= meter_feeder_cap[self.local_transmit_task[meter_index]['SUBSTATION']]:
+                        self.meter_tran_energy[self.local_transmit_task[meter_index]['TIME'], meter_index] += meter_feeder_cap[self.local_transmit_task[meter_index]['SUBSTATION']] * self.meter_p_tran
                         self.meter_bit_transmitted[self.local_transmit_task[meter_index]['TIME'], meter_index] += self.local_transmit_task[meter_index]['REMAIN'] 
                     
                     else:
-                        self.meter_tran_energy[self.local_transmit_task[meter_index]['TIME'], meter_index] += meter_feeder_cap[self.local_transmit_task[meter_index]['EDGE']] * self.meter_p_tran
+                        self.meter_tran_energy[self.local_transmit_task[meter_index]['TIME'], meter_index] += meter_feeder_cap[self.local_transmit_task[meter_index]['SUBSTATION']] * self.meter_p_tran
                         self.meter_bit_transmitted[self.local_transmit_task[meter_index]['TIME'], meter_index] += self.local_transmit_task[meter_index]['REMAIN'] 
 
                     self.local_transmit_task[meter_index]['REMAIN'] = \
                         self.local_transmit_task[meter_index]['REMAIN'] \
-                        - meter_feeder_cap[self.local_transmit_task[meter_index]['EDGE']]
+                        - meter_feeder_cap[self.local_transmit_task[meter_index]['SUBSTATION']]
 
                     #print(meter_feeder_cap)
 
-                    # UPDATE edge QUEUE
+                    # UPDATE substation QUEUE
                     if self.local_transmit_task[meter_index]['REMAIN'] <= 0:
                         tmp_dict = {'METER_ID': self.local_transmit_task[meter_index]['METER_ID'],
                                     'TASK_ID': self.local_transmit_task[meter_index]['TASK_ID'],
                                     'SIZE' : self.local_transmit_task[meter_index]['SIZE'],
                                     'DENS' : self.local_transmit_task[meter_index]['DENS'],
                                     'TIME' : self.local_transmit_task[meter_index]['TIME'],
-                                    'EDGE'  : self.local_transmit_task[meter_index]['EDGE'],
+                                    'SUBSTATION'  : self.local_transmit_task[meter_index]['SUBSTATION'],
                                     'DIV'  : self.local_transmit_task[meter_index]['DIV']}
 
         
-                        self.substation_computation_queue[meter_index][self.local_transmit_task[meter_index]['EDGE']].put(tmp_dict)
-                        #print("_+_+____", self.local_transmit_task[meter_index]['EDGE'])
+                        self.substation_computation_queue[meter_index][self.local_transmit_task[meter_index]['SUBSTATION']].put(tmp_dict)
+                        #print("_+_+____", self.local_transmit_task[meter_index]['SUBSTATION'])
                         self.task_count_substation = self.task_count_substation + 1
 
-                        substation_index = self.local_transmit_task[meter_index]['EDGE']
+                        substation_index = self.local_transmit_task[meter_index]['SUBSTATION']
                         self.b_substation_comp[meter_index, substation_index] = self.b_substation_comp[meter_index, substation_index] + self.local_transmit_task[meter_index]['SIZE']
                         
                         self.process_delay_trans[self.local_transmit_task[meter_index]['TIME'], meter_index] = self.time_count - self.local_transmit_task[meter_index]['TIME'] + 1
@@ -491,7 +491,7 @@ class SmartGrid:
             for meter_index in range(self.n_meter):
                 # observation is zero if there is no task arrival
                 if self.arrive_task_size[self.time_count, meter_index] != 0:
-                    # state [A, B^{comp}, B^{tran}, [B^{edge}]]
+                    # state [A, B^{comp}, B^{tran}, [B^{substation}]]
                     UEs_OBS_[meter_index, :] = np.hstack([
                         self.arrive_task_size[self.time_count, meter_index],
                         self.t_meter_comp[meter_index] - self.time_count + 1,
@@ -517,5 +517,6 @@ class SmartGrid:
         '''
 
    
+
 
 
