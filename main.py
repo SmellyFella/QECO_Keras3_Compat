@@ -201,6 +201,8 @@ def train(meter_RL_list, NUM_EPISODE):
         ###BELOW IS GPT GENERATED SMARTGRID STYLE TASK GENERATION:
         # Generate smart-grid-like demand patterns instead of purely random
         bitarrive_size = np.zeros([env.n_time, env.n_meter])
+        bitarrive_dens = np.zeros([env.n_time, env.n_meter])
+        task_criticality = np.zeros([env.n_time, env.n_meter], dtype=int)
         
         hours = np.arange(env.n_time) % 24
         # Base demand curve: peaks around 8 AM and 7 PM
@@ -214,12 +216,28 @@ def train(meter_RL_list, NUM_EPISODE):
                 scaled = env.min_arrive_size + base_demand[t] * (env.max_arrive_size - env.min_arrive_size)
                 # Add small noise for variability
                 noise = np.random.normal(0, 0.05 * scaled)
-                bitarrive_size[t, meter] = max(0, scaled + noise)
+                size = max(0, scaled + noise)
+                bitarrive_size[t, meter] = size
+
+                if size > 0:
+                    # Mark some percentage of tasks as critical (e.g., 20%)
+                    if np.random.rand() < 0.2:
+                        task_criticality[t, meter] = 1  # Critical
+                    else:
+                        task_criticality[t, meter] = 0  # Non-critical
         
+                    # Critical tasks → higher computational density
+                    if task_criticality[t, meter] == 1:
+                        bitarrive_dens[t, meter] = max(Config.TASK_COMP_DENS)
+                    else:
+                        bitarrive_dens[t, meter] = np.random.choice(Config.TASK_COMP_DENS)
+                
         # Optional: enforce reporting only at smart meter intervals
         mask = np.zeros_like(bitarrive_size)
         mask[::env.smart_meter_period, :] = 1
         bitarrive_size *= mask
+        bitarrive_dens *= mask
+        task_criticality *= mask
         
         # Compute computational density (urgency) based on demand level
         bitarrive_dens = np.zeros([env.n_time, env.n_meter])
@@ -236,6 +254,8 @@ def train(meter_RL_list, NUM_EPISODE):
         test = np.count_nonzero(bitarrive_size)
         print("Num_Task_Arrive:", test)
         tasks_arrived_list.append(test)
+        critical_count = np.count_nonzero(task_criticality)
+        print(f"Critical tasks: {critical_count}, Total tasks: {np.count_nonzero(bitarrive_size)}")
 
         # OBSERVATION MATRIX SETTING
         history = list()
@@ -624,6 +644,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
