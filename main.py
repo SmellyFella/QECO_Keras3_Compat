@@ -249,6 +249,17 @@ def train(meter_RL_list, NUM_EPISODE):
                         bitarrive_dens[i, j] = max(Config.TASK_COMP_DENS)
                     else:
                         bitarrive_dens[i, j] = np.random.choice(Config.TASK_COMP_DENS)
+
+        #deadline generation:
+
+        task_deadlines = np.full_like(bitarrive_size, NONCRITICAL_DEADLINE, dtype=int)
+
+        for meter in range(env.n_meter):
+            for t in range(0, env.n_time, env.smart_meter_period):
+                if task_criticality[t, meter] == 1:  # Critical task
+                    task_deadlines[t, meter] = CRITICAL_DEADLINE
+                    
+        env.task_deadlines = task_deadlines
         
         # Count arrivals for debugging
         test = np.count_nonzero(bitarrive_size)
@@ -644,6 +655,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
