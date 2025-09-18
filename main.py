@@ -1,4 +1,4 @@
-from MEC_Env import MEC
+from SmartGrid_Env import SmartGrid
 from D3QN import DuelingDoubleDeepQNetwork
 from Config import Config
 import matplotlib.pyplot as plt
@@ -13,17 +13,17 @@ def normalize(parameter, minimum, maximum):
     return normalized_parameter
 
 
-def QoE_Function(delay, max_delay, unfinish_task, ue_energy_state, ue_comp_energy, ue_trans_energy, edge_comp_energy, ue_idle_energy):
+def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, edge_comp_energy, meter_idle_energy):
     
     edge_energy  = next((e for e in edge_comp_energy if e != 0), 0)
-    idle_energy = next((e for e in ue_idle_energy if e != 0), 0)
+    idle_energy = next((e for e in meter_idle_energy if e != 0), 0)
 
-    energy_cons = ue_comp_energy + ue_trans_energy #+ edge_energy + idle_energy
-    #print(ue_comp_energy , ue_trans_energy , edge_energy , idle_energy)
-    #print(ue_energy_state, delay, energy_cons)
+    energy_cons = meter_comp_energy + meter_trans_energy #+ edge_energy + idle_energy
+    #print(meter_comp_energy , meter_trans_energy , edge_energy , idle_energy)
+    #print(meter_energy_state, delay, energy_cons)
     
     scaled_energy = normalize(energy_cons, 0, 20)*10
-    cost = 2 * ((ue_energy_state * delay) + ((1 - ue_energy_state) * scaled_energy))
+    cost = 2 * ((meter_energy_state * delay) + ((1 - meter_energy_state) * scaled_energy))
 
     Reward = max_delay*4
 
@@ -34,7 +34,7 @@ def QoE_Function(delay, max_delay, unfinish_task, ue_energy_state, ue_comp_energ
 
     return QoE
 
-def Drop_Count(ue_RL_list, episode):
+def Drop_Count(meter_RL_list, episode):
     drrop_delay10 = 0 
     drrop = 0
 
@@ -43,9 +43,9 @@ def Drop_Count(ue_RL_list, episode):
         drrop += sum(env.unfinish_task[time_index])
 
     # Count delays equal to 10 from each UE's delay_store
-    for ue in ue_RL_list:
-        if episode < len(ue.delay_store):
-            for val in ue.delay_store[episode]:
+    for meter in meter_RL_list:
+        if episode < len(meter.delay_store):
+            for val in meter.delay_store[episode]:
                 if val == 10:
                     drrop_delay10 += 1
 
@@ -53,13 +53,13 @@ def Drop_Count(ue_RL_list, episode):
     # return drrop, drrop_delay10
     return drrop
 
-def Cal_QoE(ue_RL_list, episode):
+def Cal_QoE(meter_RL_list, episode):
     episode_rewards = []
 
-    for ue in ue_RL_list:
+    for meter in meter_RL_list:
         # Only process if the episode exists
-        if episode < len(ue.reward_store):
-            episode_data = ue.reward_store[episode]
+        if episode < len(meter.reward_store):
+            episode_data = meter.reward_store[episode]
             if len(episode_data) > 0:
                 episode_rewards.append(sum(episode_data))
             else:
@@ -70,18 +70,18 @@ def Cal_QoE(ue_RL_list, episode):
     if len(episode_rewards) == 0:
         return 0.0
 
-    avg_episode_sum_reward = sum(episode_rewards) / len(ue_RL_list)
+    avg_episode_sum_reward = sum(episode_rewards) / len(meter_RL_list)
     return avg_episode_sum_reward
 
-def Cal_Delay(ue_RL_list, episode):
+def Cal_Delay(meter_RL_list, episode):
     avg_delay_in_episode = []
 
-    for i in range(len(ue_RL_list)):
+    for i in range(len(meter_RL_list)):
         # Check if this episode exists in delay_store
-        if episode < len(ue_RL_list[i].delay_store):
-            for j in range(len(ue_RL_list[i].delay_store[episode])):
-                if ue_RL_list[i].delay_store[episode][j] != 0:
-                    avg_delay_in_episode.append(ue_RL_list[i].delay_store[episode][j])
+        if episode < len(meter_RL_list[i].delay_store):
+            for j in range(len(meter_RL_list[i].delay_store[episode])):
+                if meter_RL_list[i].delay_store[episode][j] != 0:
+                    avg_delay_in_episode.append(meter_RL_list[i].delay_store[episode][j])
 
     # Avoid division by zero if no delays were recorded
     if len(avg_delay_in_episode) > 0:
@@ -89,37 +89,37 @@ def Cal_Delay(ue_RL_list, episode):
     else:
         return 0
 
-def Cal_Energy(ue_RL_list, episode):
-    energy_ue_list = []
+def Cal_Energy(meter_RL_list, episode):
+    energy_meter_list = []
 
-    for ue_RL in ue_RL_list:
+    for meter_RL in meter_RL_list:
         # Only process if the episode exists
-        if episode < len(ue_RL.energy_store):
-            energy_ue_list.append(sum(ue_RL.energy_store[episode]))
+        if episode < len(meter_RL.energy_store):
+            energy_meter_list.append(sum(meter_RL.energy_store[episode]))
         else:
-            energy_ue_list.append(0.0)  # Default if episode missing
+            energy_meter_list.append(0.0)  # Default if episode missing
 
-    if len(energy_ue_list) == 0:
+    if len(energy_meter_list) == 0:
         return 0.0
 
-    return sum(energy_ue_list) / len(energy_ue_list)
+    return sum(energy_meter_list) / len(energy_meter_list)
 
-def Cal_Total_Offloads(ue_RL_list, episode):
+def Cal_Total_Offloads(meter_RL_list, episode):
     offloads = []
 
-    for ue in ue_RL_list:
+    for meter in meter_RL_list:
         # Only process if the episode exists
-        if episode < len(ue.offload_store):
-            offloads.append(sum(ue.offload_store[episode]))
+        if episode < len(meter.offload_store):
+            offloads.append(sum(meter.offload_store[episode]))
         else:
             offloads.append(0.0)  # Default if episode missing
 
     if len(offloads) == 0:
         return 0.0
 
-    return sum(offloads) / len(ue_RL_list)  # average per UE
+    return sum(offloads) / len(meter_RL_list)  # average per UE
 
-def train(ue_RL_list, NUM_EPISODE):
+def train(meter_RL_list, NUM_EPISODE):
     avg_QoE_list = []
     avg_delay_list = []
     energy_cons_list = []
@@ -142,22 +142,22 @@ def train(ue_RL_list, NUM_EPISODE):
 
         print("\n-*-**-***-*****-********-*************-********-*****-***-**-*-")
         print("Episode  :", episode, )
-        print("Epsilon  :", ue_RL_list[0].epsilon)
+        print("Epsilon  :", meter_RL_list[0].epsilon)
 
         # BITRATE ARRIVAL
         #Below replaced with periodic instead of probabilistic bit rate to better emulate smart meters
-        ##bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_ue])
-        bitarrive_size = np.zeros([env.n_time, env.n_ue])
-        for ue in range(env.n_ue):
+        ##bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_meter])
+        bitarrive_size = np.zeros([env.n_time, env.n_meter])
+        for meter in range(env.n_meter):
             for t in range(0, env.n_time, env.smart_meter_period):
-                bitarrive_size[t, ue] = np.random.uniform(env.min_arrive_size, env.max_arrive_size)
+                bitarrive_size[t, meter] = np.random.uniform(env.min_arrive_size, env.max_arrive_size)
 
         
         task_prob = env.task_arrive_prob
-        bitarrive_size = bitarrive_size * (np.random.uniform(0, 1, size=[env.n_time, env.n_ue]) < task_prob)
-        bitarrive_size[-env.max_delay:, :] = np.zeros([env.max_delay, env.n_ue])
+        bitarrive_size = bitarrive_size * (np.random.uniform(0, 1, size=[env.n_time, env.n_meter]) < task_prob)
+        bitarrive_size[-env.max_delay:, :] = np.zeros([env.max_delay, env.n_meter])
 
-        bitarrive_dens = np.zeros([env.n_time, env.n_ue])
+        bitarrive_dens = np.zeros([env.n_time, env.n_meter])
         for i in range(len(bitarrive_size)):
             for j in range(len(bitarrive_size[i])):
                 if bitarrive_size[i][j] != 0:
@@ -186,14 +186,14 @@ def train(ue_RL_list, NUM_EPISODE):
         history = list()
         for time_index in range(env.n_time):
             history.append(list())
-            for ue_index in range(env.n_ue):
+            for meter_index in range(env.n_meter):
                 tmp_dict = {'observation': np.zeros(env.n_features),
                             'lstm': np.zeros(env.n_lstm_state),
                             'action': np.nan,
                             'observation_': np.zeros(env.n_features),
                             'lstm_': np.zeros(env.n_lstm_state)}
                 history[time_index].append(tmp_dict)
-        reward_indicator = np.zeros([env.n_time, env.n_ue])
+        reward_indicator = np.zeros([env.n_time, env.n_meter])
 
         # INITIALIZE OBSERVATION
         observation_all, lstm_state_all = env.reset(bitarrive_size, bitarrive_dens)
@@ -206,16 +206,16 @@ def train(ue_RL_list, NUM_EPISODE):
     
     
             # PERFORM ACTION
-            action_all = np.zeros([env.n_ue])
-            for ue_index in range(env.n_ue):
-                observation = np.squeeze(observation_all[ue_index, :])
+            action_all = np.zeros([env.n_meter])
+            for meter_index in range(env.n_meter):
+                observation = np.squeeze(observation_all[meter_index, :])
                 if np.sum(observation) == 0:
                     # if there is no task, action = 0 (also need to be stored)
-                    action_all[ue_index] = 0
+                    action_all[meter_index] = 0
                 else:
-                    action_all[ue_index] = ue_RL_list[ue_index].choose_action(observation)
+                    action_all[meter_index] = meter_RL_list[meter_index].choose_action(observation)
                     if observation[0] != 0:
-                        ue_RL_list[ue_index].do_store_action(episode, env.time_count, action_all[ue_index])
+                        meter_RL_list[meter_index].do_store_action(episode, env.time_count, action_all[meter_index])
 
             # OBSERVE THE NEXT STATE AND PROCESS DELAY (REWARD)
             observation_all_, lstm_state_all_, done = env.step(action_all)
@@ -226,8 +226,8 @@ def train(ue_RL_list, NUM_EPISODE):
 
 
             # should store this information in EACH time slot
-            for ue_index in range(env.n_ue):
-                ue_RL_list[ue_index].update_lstm(lstm_state_all_[ue_index,:])
+            for meter_index in range(env.n_meter):
+                meter_RL_list[meter_index].update_lstm(lstm_state_all_[meter_index,:])
 
             process_delay = env.process_delay
             unfinish_task = env.unfinish_task
@@ -235,71 +235,71 @@ def train(ue_RL_list, NUM_EPISODE):
             
 
             #Track the successful offloads:
-            for ue_index in range(env.n_ue):
+            for meter_index in range(env.n_meter):
                 # Example: action==1 means "offload to fog"
-                processed_bits = env.edge_bit_processed[env.time_count -1, ue_index]
-                if action_all[ue_index] > 0: # and np.sum(processed_bits) > 0:
+                processed_bits = env.edge_bit_processed[env.time_count -1, meter_index]
+                if action_all[meter_index] > 0: # and np.sum(processed_bits) > 0:
                     success_flag = 1
                 else:
                     success_flag = 0
             
-                ue_RL_list[ue_index].do_store_offload(
+                meter_RL_list[meter_index].do_store_offload(
                     episode,
                     env.time_count-1,   # current timestep
                     success_flag
                 )
-                #print(f"Episode {episode}, t={env.time_count-1}, UE {ue_index}, action={action_all[ue_index]}, processed={processed_bits}")
+                #print(f"Episode {episode}, t={env.time_count-1}, UE {meter_index}, action={action_all[meter_index]}, processed={processed_bits}")
                 
           
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
-            for ue_index in range(env.n_ue):
+            for meter_index in range(env.n_meter):
 
-                history[env.time_count - 1][ue_index]['observation'] = observation_all[ue_index, :]
-                history[env.time_count - 1][ue_index]['lstm'] = np.squeeze(lstm_state_all[ue_index, :])
-                history[env.time_count - 1][ue_index]['action'] = action_all[ue_index]
-                history[env.time_count - 1][ue_index]['observation_'] = observation_all_[ue_index]
-                history[env.time_count - 1][ue_index]['lstm_'] = np.squeeze(lstm_state_all_[ue_index,:])
+                history[env.time_count - 1][meter_index]['observation'] = observation_all[meter_index, :]
+                history[env.time_count - 1][meter_index]['lstm'] = np.squeeze(lstm_state_all[meter_index, :])
+                history[env.time_count - 1][meter_index]['action'] = action_all[meter_index]
+                history[env.time_count - 1][meter_index]['observation_'] = observation_all_[meter_index]
+                history[env.time_count - 1][meter_index]['lstm_'] = np.squeeze(lstm_state_all_[meter_index,:])
 
-                update_index = np.where((1 - reward_indicator[:,ue_index]) * process_delay[:,ue_index] > 0)[0]
+                update_index = np.where((1 - reward_indicator[:,meter_index]) * process_delay[:,meter_index] > 0)[0]
 
                 if len(update_index) != 0:
                     for update_ii in range(len(update_index)):
                         time_index = update_index[update_ii]
-                        ue_RL_list[ue_index].store_transition(history[time_index][ue_index]['observation'],
-                                                                history[time_index][ue_index]['lstm'],
-                                                                history[time_index][ue_index]['action'],
-                                                                QoE_Function(process_delay[time_index, ue_index],
+                        meter_RL_list[meter_index].store_transition(history[time_index][meter_index]['observation'],
+                                                                history[time_index][meter_index]['lstm'],
+                                                                history[time_index][meter_index]['action'],
+                                                                QoE_Function(process_delay[time_index, meter_index],
                                                                                 env.max_delay,
-                                                                                unfinish_task[time_index, ue_index],
-                                                                                env.ue_energy_state[ue_index],
-                                                                                env.ue_comp_energy[time_index, ue_index],
-                                                                                env.ue_tran_energy [time_index, ue_index],
-                                                                                env.edge_comp_energy[time_index, ue_index],
-                                                                                env.ue_idle_energy[time_index, ue_index]),
-                                                                history[time_index][ue_index]['observation_'],
-                                                                history[time_index][ue_index]['lstm_'])
-                        ue_RL_list[ue_index].do_store_reward(episode, time_index,
-                                                               QoE_Function(process_delay[time_index, ue_index],
+                                                                                unfinish_task[time_index, meter_index],
+                                                                                env.meter_energy_state[meter_index],
+                                                                                env.meter_comp_energy[time_index, meter_index],
+                                                                                env.meter_tran_energy [time_index, meter_index],
+                                                                                env.edge_comp_energy[time_index, meter_index],
+                                                                                env.meter_idle_energy[time_index, meter_index]),
+                                                                history[time_index][meter_index]['observation_'],
+                                                                history[time_index][meter_index]['lstm_'])
+                        meter_RL_list[meter_index].do_store_reward(episode, time_index,
+                                                               QoE_Function(process_delay[time_index, meter_index],
                                                                                 env.max_delay,
-                                                                                unfinish_task[time_index, ue_index],
-                                                                                env.ue_energy_state[ue_index],
-                                                                                env.ue_comp_energy[time_index, ue_index],
-                                                                                env.ue_tran_energy [time_index, ue_index],
-                                                                                env.edge_comp_energy[time_index, ue_index],
-                                                                                env.ue_idle_energy[time_index, ue_index]))
-                        ue_RL_list[ue_index].do_store_delay(episode, time_index,
-                                                              process_delay[time_index, ue_index])
+                                                                                unfinish_task[time_index, meter_index],
+                                                                                env.meter_energy_state[meter_index],
+                                                                                env.meter_comp_energy[time_index, meter_index],
+                                                                                env.meter_tran_energy [time_index, meter_index],
+                                                                                env.edge_comp_energy[time_index, meter_index],
+                                                                                env.meter_idle_energy[time_index, meter_index]))
+                        meter_RL_list[meter_index].do_store_delay(episode, time_index,
+                                                              process_delay[time_index, meter_index])
 
-                        ue_RL_list[ue_index].do_store_energy(
+                        meter_RL_list[meter_index].do_store_energy(
                             episode,
                             time_index,
-                            env.ue_comp_energy[time_index, ue_index],
-                            env.ue_tran_energy [time_index, ue_index],
-                            env.edge_comp_energy[time_index, ue_index],
-                            env.ue_idle_energy[time_index, ue_index])
+                            env.meter_comp_energy[time_index, meter_index],
+                            env.meter_tran_energy [time_index, meter_index],
+                            env.edge_comp_energy[time_index, meter_index],
+                            env.meter_idle_energy[time_index, meter_index])
 
-                        reward_indicator[time_index, ue_index] = 1
+                        reward_indicator[time_index, meter_index] = 1
 
 
             # ADD STEP (one step does not mean one store)
@@ -311,23 +311,23 @@ def train(ue_RL_list, NUM_EPISODE):
 
             # CONTROL LEARNING START TIME AND FREQUENCY
             if (RL_step > 200) and (RL_step % 10 == 0):
-                for ue in range(env.n_ue):
-                    ue_RL_list[ue].learn()
+                for meter in range(env.n_meter):
+                    meter_RL_list[meter].learn()
 
             # GAME ENDS
 
             if done:
                 with open("Delay.txt", 'a') as f:
-                            f.write('\n' + str(Cal_Delay(ue_RL_list, episode)))
+                            f.write('\n' + str(Cal_Delay(meter_RL_list, episode)))
 
                 with open("Energy.txt", 'a') as f:
-                            f.write('\n' + str(Cal_Energy(ue_RL_list, episode)))
+                            f.write('\n' + str(Cal_Energy(meter_RL_list, episode)))
 
                 with open("QoE.txt", 'a') as f:
-                            f.write('\n' + str(Cal_QoE(ue_RL_list, episode)))
+                            f.write('\n' + str(Cal_QoE(meter_RL_list, episode)))
 
                 with open("Drop.txt", 'a') as f:
-                            f.write('\n' + str(Drop_Count(ue_RL_list, episode)))
+                            f.write('\n' + str(Drop_Count(meter_RL_list, episode)))
 
                 
                
@@ -363,62 +363,62 @@ def train(ue_RL_list, NUM_EPISODE):
                                 drop_task += 1
                 cnt = len(env.task_history) * len(env.task_history[0]) * env.n_component
 
-                #a = Drop_Count(ue_RL_list, episode)
+                #a = Drop_Count(meter_RL_list, episode)
                 '''
 
                 
                 if episode % 200 == 0 and episode != 0:
                     os.makedirs("models" + "/" + str(episode))
-                    for ue in range(env.n_ue):
-                        ue_RL_list[ue].saver.save(ue_RL_list[ue].sess, "models/" + str(episode) +'/'+ str(ue) + "_X_model" +'/model.ckpt', global_step=episode)
-                        print("UE", ue, "Network_model_seved\n")
+                    for meter in range(env.n_meter):
+                        meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
+                        print("UE", meter, "Network_model_seved\n")
                 
                 
                 if episode % 999 == 0 and episode != 0:
                     os.makedirs("models" + "/" + str(episode))
-                    for ue in range(env.n_ue):
-                        ue_RL_list[ue].saver.save(ue_RL_list[ue].sess, "models/" + str(episode) +'/'+ str(ue) + "_X_model" +'/model.ckpt', global_step=episode)
-                        print("UE", ue, "Network_model_seved\n")
+                    for meter in range(env.n_meter):
+                        meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
+                        print("UE", meter, "Network_model_seved\n")
 
 
                     
 
                 # Process energy
-                ue_bit_processed = sum(sum(env.ue_bit_processed))
-                ue_comp_energy = sum(sum(env.ue_comp_energy))
+                meter_bit_processed = sum(sum(env.meter_bit_processed))
+                meter_comp_energy = sum(sum(env.meter_comp_energy))
 
                 # Transmission energy
-                ue_bit_transmitted = sum(sum(env.ue_bit_transmitted))
-                ue_tran_energy = sum(sum(env.ue_tran_energy))
+                meter_bit_transmitted = sum(sum(env.meter_bit_transmitted))
+                meter_tran_energy = sum(sum(env.meter_tran_energy))
 
                 # edge energy
                 edge_bit_processed = sum(sum(env.edge_bit_processed))
                 edge_comp_energy = sum(sum(env.edge_comp_energy))
-                ue_idle_energy = sum(sum(env.ue_idle_energy))
+                meter_idle_energy = sum(sum(env.meter_idle_energy))
 
-                avg_delay  = Cal_Delay(ue_RL_list, episode)
-                avg_energy = Cal_Energy(ue_RL_list, episode)
-                avg_QoE   = Cal_QoE(ue_RL_list, episode)
+                avg_delay  = Cal_Delay(meter_RL_list, episode)
+                avg_energy = Cal_Energy(meter_RL_list, episode)
+                avg_QoE   = Cal_QoE(meter_RL_list, episode)
                 
-                total_offloads = Cal_Total_Offloads(ue_RL_list, episode)
+                total_offloads = Cal_Total_Offloads(meter_RL_list, episode)
 
 
                 avg_QoE_list.append(avg_QoE)
                 avg_delay_list.append(avg_delay)
                 energy_cons_list.append(avg_energy)
-                num_drop_list.append(env.drop_trans_count+env.drop_edge_count+env.drop_ue_count)
+                num_drop_list.append(env.drop_trans_count+env.drop_edge_count+env.drop_meter_count)
 
                 total_offload_attempt_list.append(total_offloads)
 
-                avg_reward_list.append(-(Cal_QoE(ue_RL_list, episode)))
+                avg_reward_list.append(-(Cal_QoE(meter_RL_list, episode)))
 
                 offload_success_list.append(env.successful_offloads)
 
                 # Append metrics to tracking lists
                 if episode % 10 == 0:
                     avg_reward_list_2.append(sum(avg_reward_list[episode-10:episode]) / 10)
-                    avg_delay_list_in_episode.append(Cal_Delay(ue_RL_list, episode))
-                    avg_energy_list_in_episode.append(Cal_Energy(ue_RL_list, episode))
+                    avg_delay_list_in_episode.append(Cal_Delay(meter_RL_list, episode))
+                    avg_energy_list_in_episode.append(Cal_Energy(meter_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
                     fig, axs = plt.subplots(8, 1, figsize=(10, 20))
@@ -520,17 +520,17 @@ def train(ue_RL_list, NUM_EPISODE):
 
                 print("SystemPerformance: ---------------------------------------------------------------------")
                 #print("Num_Completed :  ", )
-                print("Num_Dropped   :  ", env.drop_trans_count+env.drop_edge_count+env.drop_ue_count, "[Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_ue_count,"]")
+                print("Num_Dropped   :  ", env.drop_trans_count+env.drop_edge_count+env.drop_meter_count, "[Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_meter_count,"]")
                 print("Avg_Delay     :  ", "%0.1f" %avg_delay)
                 print("Avg_Energy    :  ", "%0.1f" %avg_energy)
                 print("Avg_QoE       :  ", "%0.1f" %avg_QoE)
                 print("EnergyCosumption: ----------------------------------------------------------------------")
-                print("Local         :  ", "%0.1f" %ue_comp_energy, "[ue_bit_processed:", int(ue_bit_processed),"]")
-                print("Trans         :  ", "%0.1f" %ue_tran_energy, "[ue_bit_transmitted:", int(ue_bit_transmitted),"]")
-                print("Edges         :  ", "%0.1f" % sum(ue_idle_energy), "[edge_bit_processed :", int(sum(edge_bit_processed)),"]")
+                print("Local         :  ", "%0.1f" %meter_comp_energy, "[meter_bit_processed:", int(meter_bit_processed),"]")
+                print("Trans         :  ", "%0.1f" %meter_tran_energy, "[meter_bit_transmitted:", int(meter_bit_transmitted),"]")
+                print("Edges         :  ", "%0.1f" % sum(meter_idle_energy), "[edge_bit_processed :", int(sum(edge_bit_processed)),"]")
                 #print("--------------------------------------------------------------------------------------------------------")
-                #print("Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_ue_count)
-                #print("Drop_Count: ",Drop_Count(ue_RL_list, episode))
+                #print("Trans_Drop: ", env.drop_trans_count, "Edge_Drop: ", env.drop_edge_count, "UE_Drop: ", env.drop_meter_count)
+                #print("Drop_Count: ",Drop_Count(meter_RL_list, episode))
 
                 break # Training Finished
 
@@ -538,12 +538,12 @@ def train(ue_RL_list, NUM_EPISODE):
 if __name__ == "__main__":
 
     # GENERATE ENVIRONMENT
-    env = MEC(Config.N_UE, Config.N_EDGE, Config.N_TIME, Config.N_COMPONENT, Config.MAX_DELAY)
+    env = SmartGrid(Config.N_METER, Config.N_SUBSTATION, Config.N_TIME, Config.N_COMPONENT, Config.MAX_DELAY)
 
     # GENERATE MULTIPLE CLASSES FOR RL
-    ue_RL_list = list()
-    for ue in range(Config.N_UE):
-        ue_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
+    meter_RL_list = list()
+    for meter in range(Config.N_UE):
+        meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
                                                     learning_rate       = Config.LEARNING_RATE,
                                                     reward_decay        = Config.REWARD_DECAY,
                                                     e_greedy            = Config.E_GREEDY,
@@ -555,9 +555,9 @@ if __name__ == "__main__":
 
     # LOAD Trained MODEL 
     '''
-    for ue in range(Config.N_UE):
-        ue_RL_list[ue].Initialize(ue_RL_list[ue].sess, ue)
-        ue_RL_list[ue].epsilon = 1
+    for meter in range(Config.N_UE):
+        meter_RL_list[meter].Initialize(meter_RL_list[meter].sess, meter)
+        meter_RL_list[meter].epsilon = 1
     '''
 
     Delay  = open("Delay.txt" , 'w')
@@ -567,7 +567,8 @@ if __name__ == "__main__":
                            
 
     # TRAIN THE SYSTEM
-    train(ue_RL_list, Config.N_EPISODE)
+    train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
