@@ -33,7 +33,8 @@ class SmartGrid:
         self.drop_meter_count = 0
         #Added successful offloads count to track how many tasks were successfully offloaded
         self.successful_offloads = 0
-  
+
+        self.task_criticality = np.zeros([self.n_time, self.n_meter], dtype=int)
 
         # Tansmission line and Substation feeder capacity
         self.line_cap_meter   = Config.METER_COMP_CAP * np.ones(self.n_meter) * self.duration
@@ -86,7 +87,7 @@ class SmartGrid:
 
         self.task_history = [[] for _ in range(self.n_meter)]
 
-    def reset(self, arrive_task_size, arrive_task_dens):
+    def reset(self, arrive_task_size, arrive_task_dens, task_criticality = None):
     
         self.drop_trans_count = 0
         self.drop_substation_count = 0
@@ -138,18 +139,25 @@ class SmartGrid:
                                     'TIME': np.nan, 'REMAIN': np.nan} for _ in range(self.n_substation)] for _ in range(self.n_meter)]
 
         # Initial observation and LSTM state
-        UEs_OBS = np.zeros([self.n_meter, self.n_features])
+        Meters_OBS = np.zeros([self.n_meter, self.n_features])
         for meter_index in range(self.n_meter):
             if self.arrive_task_size[self.time_count, meter_index] != 0:
-                UEs_OBS[meter_index, :] = np.hstack([
+                Meters_OBS[meter_index, :] = np.hstack([
                     self.arrive_task_size[self.time_count, meter_index], self.t_meter_comp[meter_index],
                     self.t_meter_tran[meter_index],
                     np.squeeze(self.b_substation_comp[meter_index, :]),
                     self.meter_energy_state[meter_index]])
 
-        UEs_lstm_state = np.zeros([self.n_meter, self.n_lstm_state])
+        Meters_lstm_state = np.zeros([self.n_meter, self.n_lstm_state])
 
-        return UEs_OBS, UEs_lstm_state
+        # Store criticality for later use
+        if task_criticality is not None:
+            self.task_criticality = task_criticality
+        else:
+            # Default: assume all tasks are non-critical if not provided
+            self.task_criticality = np.zeros_like(bitarrive_size, dtype=int)
+
+        return Meters_OBS, Meters_lstm_state
 
    
     # perform action, observe state and delay (several steps later)
@@ -164,8 +172,13 @@ class SmartGrid:
             meter_action_offload[meter_index] = int(meter_action - 1)
             if meter_action == 0:
                 meter_action_local[meter_index] = 1
-
-
+                
+        ##criticality store
+        t = self.time_count
+    
+        # Get criticality for tasks arriving at this timestep
+        current_criticality = self.task_criticality[t, :]
+        
         #meter_action_offload = np.zeros([self.n_meter], np.int32)
         #meter_action_component = np.zeros([self.n_meter], np.int32)-1
         #random_list  = []
@@ -485,38 +498,24 @@ class SmartGrid:
 
 
         # OBSERVATION
-        UEs_OBS_ = np.zeros([self.n_meter, self.n_features])
-        UEs_lstm_state_ = np.zeros([self.n_meter, self.n_lstm_state])
+        Meters_OBS_ = np.zeros([self.n_meter, self.n_features])
+        Meters_lstm_state_ = np.zeros([self.n_meter, self.n_lstm_state])
         if not done:
             for meter_index in range(self.n_meter):
                 # observation is zero if there is no task arrival
                 if self.arrive_task_size[self.time_count, meter_index] != 0:
                     # state [A, B^{comp}, B^{tran}, [B^{substation}]]
-                    UEs_OBS_[meter_index, :] = np.hstack([
+                    Meters_OBS_[meter_index, :] = np.hstack([
                         self.arrive_task_size[self.time_count, meter_index],
                         self.t_meter_comp[meter_index] - self.time_count + 1,
                         self.t_meter_tran[meter_index] - self.time_count + 1,
                         self.b_substation_comp[meter_index, :],
                         self.meter_energy_state[meter_index]])
 
-                UEs_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
+                Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
 
-        return UEs_OBS_, UEs_lstm_state_, done
+        return Meters_OBS_, Meters_lstm_state_, done
 
-
-            
-        '''
-        for ue in range(self.n_meter):
-            for task in range(len(self.task_history[ue])):
-                #print(self.task_history[ue][task], "\n")
-                for component in range(self.n_component):
-                    
-                    if self.task_history[ue][task]['d_state'][component] < 0:
-                        self.process_delay[self.task_history[ue][task]['TIME'], ue] = self.max_delay
-                        self.unfinish_task[self.task_history[ue][task]['TIME'], ue] = 1
-        '''
-
-   
 
 
 
