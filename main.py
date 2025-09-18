@@ -237,7 +237,7 @@ def train(meter_RL_list, NUM_EPISODE):
         mask[::env.smart_meter_period, :] = 1
         bitarrive_size *= mask
         bitarrive_dens *= mask
-        task_criticality *= mask
+        task_criticality = (task_criticality * mask).astype(int)
         
         # Compute computational density (urgency) based on demand level
         bitarrive_dens = np.zeros([env.n_time, env.n_meter])
@@ -271,7 +271,7 @@ def train(meter_RL_list, NUM_EPISODE):
         reward_indicator = np.zeros([env.n_time, env.n_meter])
 
         # INITIALIZE OBSERVATION
-        observation_all, lstm_state_all = env.reset(bitarrive_size, bitarrive_dens)
+        observation_all, lstm_state_all = env.reset(bitarrive_size, bitarrive_dens, task_criticality)
         #print(observation_all)
         #print(lstm_state_all)
         
@@ -644,6 +644,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
