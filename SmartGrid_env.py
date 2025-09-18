@@ -4,7 +4,7 @@ import random
 import math
 import queue
 
-class MEC:
+class SmartGrid:
     def __init__(self, num_meter, num_substation, num_time, num_component, max_delay):
         # Initialize variables
         self.n_meter          = num_meter
@@ -517,4 +517,5 @@ class MEC:
         '''
 
    
+
 
