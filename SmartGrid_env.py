@@ -89,6 +89,25 @@ class SmartGrid:
 
         self.task_history = [[] for _ in range(self.n_meter)]
 
+    def current_load(self):
+      """
+      Compute current load as total number of tasks in all queues.
+      Could also be weighted by task size.
+      """
+      total_load = 0
+      # Add meter computation queues
+      for q in self.meter_computation_queue:
+          total_load += q.qsize()
+      # Add meter transmission queues
+      for q in self.meter_transmission_queue:
+          total_load += q.qsize()
+      # Add substation queues
+      for meter_idx in range(self.n_meter):
+          for sub_idx in range(self.n_substation):
+              total_load += self.substation_computation_queue[meter_idx][sub_idx].qsize()
+      return total_load
+
+
     def reset(self, arrive_task_size, arrive_task_dens, task_criticality = None):
     
         self.drop_trans_count = 0
@@ -473,22 +492,26 @@ class SmartGrid:
                                                             self.time_count + self.max_delay - 1])
             
             # Calculate communication delay
-        comm_delay = self.FIXED_COMM_DELAY
+        comm_delay = Config.FIXED_COMM_DELAY
     
         # Estimate processing delay based on current load
-        proc_delay = PROC_DELAY_FACTOR * self.current_load()
+        proc_delay = Config.PROC_DELAY_FACTOR * self.current_load()
     
         total_delay = comm_delay + proc_delay
     
         # Check deadlines for each task
         for meter_idx in range(self.n_meter):
-            for t_idx, task_size in enumerate(self.active_tasks[meter_idx]):
-                if task_size > 0:
-                    deadline = self.task_deadlines[t_idx, meter_idx]
-                    if total_delay > deadline:
-                        # Mark as dropped or failed
-                        self.failed_tasks += 1
-                        self.active_tasks[meter_idx][t_idx] = 0
+          for t_idx in range(self.n_time):
+              task_size = self.arrive_task_size[t_idx, meter_idx]
+              if task_size > 0:
+                  deadline = self.task_deadlines[t_idx, meter_idx]
+                  total_delay = comm_delay + proc_delay  # as before
+                  if total_delay > deadline:
+                      self.unfinish_task[t_idx, meter_idx] = 1
+                      # Optionally count failed tasks
+                      if not hasattr(self, "failed_tasks"):
+                          self.failed_tasks = 0
+                      self.failed_tasks += 1
 
 
         # COMPUTE CONGESTION (FOR NEXT TIME SLOT)
