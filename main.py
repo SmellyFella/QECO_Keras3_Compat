@@ -252,12 +252,12 @@ def train(meter_RL_list, NUM_EPISODE):
 
         #deadline generation:
 
-        task_deadlines = np.full_like(bitarrive_size, NONCRITICAL_DEADLINE, dtype=int)
+        task_deadlines = np.full_like(bitarrive_size, Config.NONCRITICAL_DEADLINE, dtype=int)
 
         for meter in range(env.n_meter):
             for t in range(0, env.n_time, env.smart_meter_period):
                 if task_criticality[t, meter] == 1:  # Critical task
-                    task_deadlines[t, meter] = CRITICAL_DEADLINE
+                    task_deadlines[t, meter] = Config.CRITICAL_DEADLINE
                     
         env.task_deadlines = task_deadlines
         
