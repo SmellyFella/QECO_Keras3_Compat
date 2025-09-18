@@ -14,11 +14,18 @@ class Config(object):
     METER_IDLE_ENERGY   = 0.1                  # Standby power of Mobile Device
     SUBSTATION_COMP_ENERGY = 5                    # Computation Power of Edge Server
 
-    # Task Requrement
+    # Task Requirement
     TASK_COMP_DENS   = [0.197, 0.297, 0.397]      # Task Computation Density
     
     #TASK_COMP_DENS   = 0.297
 
+    # Deadlines (in timesteps) for different task types
+    CRITICAL_DEADLINE = 2      # must be processed within 2 timesteps
+    NONCRITICAL_DEADLINE = 6   # non-critical tasks can wait longer
+    
+    # Latency introduced by communication/processing
+    FIXED_COMM_DELAY = 1       # time to send reading to substation
+    PROC_DELAY_FACTOR = 0.5    # scales with load (e.g., number of tasks in queue)
 
     TASK_MIN_SIZE    = 1
     TASK_MAX_SIZE    = 7
