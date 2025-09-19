@@ -162,7 +162,7 @@ def train(meter_RL_list, NUM_EPISODE):
         for i in range(len(bitarrive_size)):
             for j in range(len(bitarrive_size[i])):
                 if bitarrive_size[i][j] != 0:
-                    bitarrive_dens[i][j] = Config.TASK_COMP_DENS[np.random.randint(0, len(Config.TASK_COMP_DENS))]
+                    bitarrive_dens[i][j] = Config.TASK_URGENCY_FACTOR[np.random.randint(0, len(Config.TASK_URGENCY_FACTOR))]
 
 
         test = 0 
@@ -228,9 +228,9 @@ def train(meter_RL_list, NUM_EPISODE):
         
                     # Critical tasks → higher computational density
                     if task_criticality[t, meter] == 1:
-                        bitarrive_dens[t, meter] = max(Config.TASK_COMP_DENS)
+                        bitarrive_dens[t, meter] = max(Config.TASK_URGENCY_FACTOR)
                     else:
-                        bitarrive_dens[t, meter] = np.random.choice(Config.TASK_COMP_DENS)
+                        bitarrive_dens[t, meter] = np.random.choice(Config.TASK_URGENCY_FACTOR)
                 
         # Optional: enforce reporting only at smart meter intervals
         mask = np.zeros_like(bitarrive_size)
@@ -246,9 +246,9 @@ def train(meter_RL_list, NUM_EPISODE):
                 if bitarrive_size[i, j] > 0:
                     # Higher demand → pick a denser requirement
                     if bitarrive_size[i, j] > (env.max_arrive_size + env.min_arrive_size) / 2:
-                        bitarrive_dens[i, j] = max(Config.TASK_COMP_DENS)
+                        bitarrive_dens[i, j] = max(Config.TASK_URGENCY_FACTOR)
                     else:
-                        bitarrive_dens[i, j] = np.random.choice(Config.TASK_COMP_DENS)
+                        bitarrive_dens[i, j] = np.random.choice(Config.TASK_URGENCY_FACTOR)
 
         #deadline generation:
 
@@ -655,6 +655,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
