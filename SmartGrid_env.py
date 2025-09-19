@@ -13,8 +13,8 @@ class SmartGrid:
         self.n_component   = num_component
         self.max_delay     = max_delay
         self.duration      = Config.DURATION
-        self.meter_p_comp     = Config.METER_COMP_ENERGY
-        self.meter_p_tran     = Config.METER_TRAN_ENERGY
+        self.meter_p_comp     = Config.METER_PROC_LOSS
+        self.meter_p_tran     = Config.METER_LINE_LOSS
         self.meter_p_idle     = Config.METER_IDLE_ENERGY
         self.substation_p_comp   = Config.SUBSTATION_COMP_ENERGY
 
@@ -39,9 +39,9 @@ class SmartGrid:
         self.task_deadlines = np.zeros([self.n_time, self.n_meter], dtype=int)
 
         # Tansmission line and Substation feeder capacity
-        self.line_cap_meter   = Config.METER_COMP_CAP * np.ones(self.n_meter) * self.duration
-        self.line_cap_substation = Config.SUBSTATION_COMP_CAP * np.ones([self.n_substation]) * self.duration
-        self.feeder_cap_meter   = Config.METER_TRAN_CAP * np.ones([self.n_meter, self.n_substation]) * self.duration
+        self.line_cap_meter   = Config.METER_GEN_CAP_KW * np.ones(self.n_meter) * self.duration
+        self.line_cap_substation = Config.SUBSTATION_TRANS_CAP_KW * np.ones([self.n_substation]) * self.duration
+        self.feeder_cap_meter   = Config.METER_LINE_CAP_KW * np.ones([self.n_meter, self.n_substation]) * self.duration
         self.n_cycle = 1
         self.task_arrive_prob = Config.TASK_ARRIVE_PROB
         self.max_arrive_size   = Config.TASK_MAX_SIZE
@@ -556,6 +556,7 @@ class SmartGrid:
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
 
         return Meters_OBS_, Meters_lstm_state_, done
+
 
 
 
