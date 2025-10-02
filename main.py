@@ -12,7 +12,41 @@ def normalize(parameter, minimum, maximum):
     normalized_parameter = (parameter - minimum) / (maximum - minimum)
     return normalized_parameter
 
+#Updated reward function:
+def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy, success_flag=0, meter_capacity_util=None, task_criticality=1.0):
+     # --- ENERGY COMPONENT ---
+    total_energy = meter_comp_energy + meter_trans_energy + substation_comp_energy + meter_idle_energy
+    scaled_energy = normalize(total_energy, 0, 20) * 10   # scale to 0–10 range
 
+    # --- DELAY COMPONENT ---
+    delay_ratio = delay / max_delay if max_delay > 0 else 0
+    if delay_ratio > 1:   # deadline missed
+        delay_penalty = 2 * delay_ratio * task_crticality
+    else:
+        delay_penalty = delay_ratio * task_crticality
+
+    # --- UNFINISHED TASK PENALTY ---
+    unfinish_penalty = 5 * task_crticality if unfinish_task else 0
+
+    # --- CAPACITY UTILIZATION (optional) ---
+    if meter_capacity_util is not None:
+        util_penalty = abs(meter_capacity_util - 0.8)  # target ~80% utilization
+    else:
+        util_penalty = 0
+
+    # --- OFFLOADING SUCCESS REWARD ---
+    # success_flag = 1 if offloaded and processed, 0 otherwise
+    offload_bonus = 3 * success_flag * task_criticality
+
+    # --- COMBINE ---
+    cost = (0.5 * scaled_energy) + (2 * delay_penalty) + unfinish_penalty + util_penalty
+    QoE = 10 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
+
+    return QoE
+
+
+#####OLD QoE (Reward) Function.  
+"""
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy):
     
     substation_energy  = next((e for e in substation_comp_energy if e != 0), 0)
@@ -33,6 +67,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
         QoE = Reward - cost
 
     return QoE
+"""
 
 def Drop_Count(meter_RL_list, episode):
     drrop_delay10 = 0 
@@ -144,60 +179,6 @@ def train(meter_RL_list, NUM_EPISODE):
         print("Episode  :", episode, )
         print("Epsilon  :", meter_RL_list[0].epsilon)
 
-        """
-        # BITRATE ARRIVAL
-        #Below replaced with periodic instead of probabilistic bit rate to better emulate smart meters
-        ##bitarrive_size = np.random.uniform(env.min_arrive_size, env.max_arrive_size, size=[env.n_time, env.n_meter])
-        bitarrive_size = np.zeros([env.n_time, env.n_meter])
-        for meter in range(env.n_meter):
-            for t in range(0, env.n_time, env.smart_meter_period):
-                bitarrive_size[t, meter] = np.random.uniform(env.min_arrive_size, env.max_arrive_size)
-
-        
-        task_prob = env.task_arrive_prob
-        bitarrive_size = bitarrive_size * (np.random.uniform(0, 1, size=[env.n_time, env.n_meter]) < task_prob)
-        bitarrive_size[-env.max_delay:, :] = np.zeros([env.max_delay, env.n_meter])
-
-        bitarrive_dens = np.zeros([env.n_time, env.n_meter])
-        for i in range(len(bitarrive_size)):
-            for j in range(len(bitarrive_size[i])):
-                if bitarrive_size[i][j] != 0:
-                    bitarrive_dens[i][j] = Config.TASK_URGENCY_FACTOR[np.random.randint(0, len(Config.TASK_URGENCY_FACTOR))]
-
-
-        test = 0 
-        for i in range(len(bitarrive_size)):
-            for j in range(len(bitarrive_size[i])):
-                if bitarrive_size[i][j] != 0: 
-                    test = test + 1
-
-        print("Num_Task_Arrive: ", test)
-
-        tasks_arrived_list.append(test)
-
-        Check = []
-        for i in range(len(bitarrive_size)):
-            Check.append(sum(bitarrive_size[i]))
-
-        # OBSERVATION MATRIX SETTING
-        history = list()
-        for time_index in range(env.n_time):
-            history.append(list())
-            for meter_index in range(env.n_meter):
-                tmp_dict = {'observation': np.zeros(env.n_features),
-                            'lstm': np.zeros(env.n_lstm_state),
-                            'action': np.nan,
-                            'observation_': np.zeros(env.n_features),
-                            'lstm_': np.zeros(env.n_lstm_state)}
-                history[time_index].append(tmp_dict)
-        reward_indicator = np.zeros([env.n_time, env.n_meter])
-
-        # INITIALIZE OBSERVATION
-        observation_all, lstm_state_all = env.reset(bitarrive_size, bitarrive_dens)
-        #print(observation_all)
-        #print(lstm_state_all)
-
-        """
         ###BELOW IS GPT GENERATED SMARTGRID STYLE TASK GENERATION:
         # Generate smart-grid-like demand patterns instead of purely random
         bitarrive_size = np.zeros([env.n_time, env.n_meter])
@@ -363,7 +344,10 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
                                                                                 env.substation_comp_energy[time_index, meter_index],
-                                                                                env.meter_idle_energy[time_index, meter_index]),
+                                                                                env.meter_idle_energy[time_index, meter_index],
+                                                                                success_flag,
+                                                                                env.meter_capacity_util[meter_index],
+                                                                                env.task_criticality[time_index, meter_index]),
                                                                 history[time_index][meter_index]['observation_'],
                                                                 history[time_index][meter_index]['lstm_'])
                         meter_RL_list[meter_index].do_store_reward(episode, time_index,
@@ -374,7 +358,10 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 env.meter_comp_energy[time_index, meter_index],
                                                                                 env.meter_tran_energy [time_index, meter_index],
                                                                                 env.substation_comp_energy[time_index, meter_index],
-                                                                                env.meter_idle_energy[time_index, meter_index]))
+                                                                                env.meter_idle_energy[time_index, meter_index],
+                                                                                success_flag,
+                                                                                env.meter_capacity_util[meter_index],
+                                                                                env.task_criticality[time_index, meter_index]))
                         meter_RL_list[meter_index].do_store_delay(episode, time_index,
                                                               process_delay[time_index, meter_index])
 
@@ -655,6 +642,7 @@ if __name__ == "__main__":
 
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
