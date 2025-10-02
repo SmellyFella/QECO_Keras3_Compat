@@ -159,6 +159,21 @@ def Cal_Total_Offloads(meter_RL_list, episode):
 
     return sum(offloads) / len(meter_RL_list)  # average per UE
 
+def Cal_Total_Capcity_Util(meter_RL_list, episode):
+    capacity_util = []
+
+    for meter in meter_RL_list:
+        # Only process if the episode exists
+        if episode < len(meter.capacity_util_store):
+            offloads.append(sum(meter.capacity_util_store[episode]))
+        else:
+            offloads.append(0.0)  # Default if episode missing
+
+    if len(offloads) == 0:
+        return 0.0
+
+    return sum(capacity_util) / len(meter_RL_list)  # average per UE
+
 def train(meter_RL_list, NUM_EPISODE):
     avg_QoE_list = []
     avg_delay_list = []
@@ -177,6 +192,8 @@ def train(meter_RL_list, NUM_EPISODE):
     tasks_arrived_list = []
 
     offload_success_list = []
+
+    capacity_util_list = []
 
     for episode in range(NUM_EPISODE):
 
@@ -322,8 +339,14 @@ def train(meter_RL_list, NUM_EPISODE):
                     success_flag
                 )
                 #print(f"Episode {episode}, t={env.time_count-1}, UE {meter_index}, action={action_all[meter_index]}, processed={processed_bits}")
-                
-          
+            
+            #Track the capacity utilisation
+            for meter_index in range(env.n_meter):
+                meter_RL_list[meter_index].do_store_capacity_util(
+                    episode,
+                    env.time_count - 1,
+                    env.meter_capacity_util[meter_index]
+            )
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
             for meter_index in range(env.n_meter):
@@ -481,6 +504,8 @@ def train(meter_RL_list, NUM_EPISODE):
                 
                 total_offloads = Cal_Total_Offloads(meter_RL_list, episode)
 
+                avg_capacity_util = Cal_Capacity_Util(meter_RL_list, episode)
+
 
                 avg_QoE_list.append(avg_QoE)
                 avg_delay_list.append(avg_delay)
@@ -493,6 +518,9 @@ def train(meter_RL_list, NUM_EPISODE):
 
                 offload_success_list.append(env.successful_offloads)
 
+
+                capacity_util_list.append(avg_capacity_util)
+
                 # Append metrics to tracking lists
                 if episode % 10 == 0:
                     avg_reward_list_2.append(sum(avg_reward_list[episode-10:episode]) / 10)
@@ -500,7 +528,7 @@ def train(meter_RL_list, NUM_EPISODE):
                     avg_energy_list_in_episode.append(Cal_Energy(meter_RL_list, episode))
 
                     # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(8, 1, figsize=(10, 20))
+                    fig, axs = plt.subplots(9, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
@@ -587,6 +615,13 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[7].set_xlabel('Episodes')
                     axs[7].grid(True, linestyle='--', alpha=0.7)
                     axs[7].legend()
+
+                    axs[8].plot(capacity_util_list, marker = 'x', linestyle = '-', color = 'y', label = 'Capacity Utilised')
+                    axs[8].set_title('', fontsize=14)
+                    axs[8].set_ylabel('Capacity utilised')
+                    axs[8].set_xlabel('Episodes')
+                    axs[8].grid(True, linestyle='--', alpha=0.7)
+                    axs[8].legend()
                     
 
                     # Save the figure to a file
@@ -646,6 +681,7 @@ if __name__ == "__main__":
                            
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
