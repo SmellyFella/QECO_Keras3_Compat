@@ -66,9 +66,10 @@ class DuelingDoubleDeepQNetwork:
         self.action_store = list()
         self.delay_store = list()
         self.energy_store = list()
+                     
         #Add list to store offloaded tasks
         self.offload_store = list()
-        
+        self.capacity_util_store = list()
 
         self.lstm_history = deque(maxlen=self.n_lstm_step)
         for ii in range(self.n_lstm_step):
@@ -318,7 +319,12 @@ class DuelingDoubleDeepQNetwork:
         while episode >= len(self.offload_store):
             self.offload_store.append(np.zeros([self.n_time]))
         self.offload_store[episode][time] = success
-        
+
+    #method for tracking capacity utilisation:
+    def do_store_capcity_util(self, episode, time, capacity_util):
+        while episode >= len(self.capacity_util_store):
+            self.capacity_util_store.append(np.zeros([self.n_time]))
+        self.capacity_util_store[episode][time] = capacity_util
 
     def Initialize(self,sess,iot):
         self.sess = sess
@@ -333,4 +339,5 @@ class DuelingDoubleDeepQNetwork:
         if latest_ckpt is not None:
 
             self.saver.restore(self.sess, latest_ckpt)
+
 
