@@ -14,19 +14,22 @@ def normalize(parameter, minimum, maximum):
 
 #Updated reward function:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy, success_flag=0, meter_capacity_util=None, task_criticality=1.0):
+    #Scaling of inputs
+    substation_energy = np.sum(substation_comp_energy)
+    idle_energy = np.sum(meter_idle_energy)
      # --- ENERGY COMPONENT ---
-    total_energy = meter_comp_energy + meter_trans_energy + substation_comp_energy + meter_idle_energy
+    total_energy = meter_comp_energy + meter_trans_energy + substation_energy + idle_energy
     scaled_energy = normalize(total_energy, 0, 20) * 10   # scale to 0–10 range
 
     # --- DELAY COMPONENT ---
     delay_ratio = delay / max_delay if max_delay > 0 else 0
     if delay_ratio > 1:   # deadline missed
-        delay_penalty = 2 * delay_ratio * task_crticality
+        delay_penalty = 2 * delay_ratio * task_criticality
     else:
-        delay_penalty = delay_ratio * task_crticality
+        delay_penalty = delay_ratio * task_criticality
 
     # --- UNFINISHED TASK PENALTY ---
-    unfinish_penalty = 5 * task_crticality if unfinish_task else 0
+    unfinish_penalty = 5 * task_criticality if unfinish_task else 0
 
     # --- CAPACITY UTILIZATION (optional) ---
     if meter_capacity_util is not None:
@@ -42,6 +45,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
     cost = (0.5 * scaled_energy) + (2 * delay_penalty) + unfinish_penalty + util_penalty
     QoE = 10 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
 
+    QoE = float(QoE)
     return QoE
 
 
