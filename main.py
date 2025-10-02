@@ -14,6 +14,7 @@ def normalize(parameter, minimum, maximum):
 
 #Updated reward function:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy, success_flag=0, meter_capacity_util=None, task_criticality=1.0):
+    print("task criticality: " + task_criticality)
     #Scaling of inputs
     substation_energy = np.sum(substation_comp_energy)
     idle_energy = np.sum(meter_idle_energy)
@@ -39,10 +40,10 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
 
     # --- OFFLOADING SUCCESS REWARD ---
     # success_flag = 1 if offloaded and processed, 0 otherwise
-    offload_bonus = 3 * success_flag * task_criticality
+    offload_bonus = 5 * success_flag * task_criticality
 
     # --- COMBINE ---
-    cost = (0.5 * scaled_energy) + (2 * delay_penalty) + unfinish_penalty + util_penalty
+    cost = (0.5 * scaled_energy) + (3 * delay_penalty) + unfinish_penalty + util_penalty
     QoE = 10 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
 
     QoE = float(QoE)
@@ -643,7 +644,6 @@ if __name__ == "__main__":
     QoE    = open("QoE.txt"   , 'w')
     Drop   = open("Drop.txt"  , 'w')
                            
-
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
 
