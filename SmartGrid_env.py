@@ -31,13 +31,16 @@ class SmartGrid:
         self.drop_trans_count = 0
         self.drop_substation_count = 0
         self.drop_meter_count = 0
+        
         #Added successful offloads count to track how many tasks were successfully offloaded
         self.successful_offloads = 0
-
+        #Criticality store for critical tasks
         self.task_criticality = np.zeros([self.n_time, self.n_meter], dtype=int)
-
+        #deadline store for task deadlines
         self.task_deadlines = np.zeros([self.n_time, self.n_meter], dtype=int)
-
+        #meter capacity utilisation store for reward function
+        self.meter_capacity_util = np.zeros(self.n_meter)
+        
         # Tansmission line and Substation feeder capacity
         self.line_cap_meter   = Config.METER_GEN_CAP_KW * np.ones(self.n_meter) * self.duration
         self.line_cap_substation = Config.SUBSTATION_TRANS_CAP_KW * np.ones([self.n_substation]) * self.duration
@@ -116,6 +119,9 @@ class SmartGrid:
         #Added the reset for successful offloads
         self.successful_offloads = 0
 
+        #reset the meter capacity tracker
+        self.meter_capacity_util = np.zeros(self.n_meter)
+
         # Reset variables and queues
         self.task_history = [[] for _ in range(self.n_meter)]
         self.METER_TASK = [-1] * self.n_meter
@@ -193,6 +199,19 @@ class SmartGrid:
             meter_action_offload[meter_index] = int(meter_action - 1)
             if meter_action == 0:
                 meter_action_local[meter_index] = 1
+
+        #Capacity utilisation code
+        for meter_idx in range(self.n_meter):
+            # actual work processed (energy or data)
+            processed = self.meter_bit_processed[self.time_count-1, meter_idx]
+            
+            # maximum meter capacity (already in Config)
+            max_cap = Config.METER_GEN_CAP_KW * self.duration
+            
+            if max_cap > 0:
+                self.meter_capacity_util[meter_idx] = processed / max_cap
+            else:
+                self.meter_capacity_util[meter_idx] = 0
                 
         ##criticality store
         t = self.time_count
@@ -556,6 +575,7 @@ class SmartGrid:
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
 
         return Meters_OBS_, Meters_lstm_state_, done
+
 
 
 
