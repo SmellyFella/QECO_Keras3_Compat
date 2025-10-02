@@ -321,7 +321,7 @@ class DuelingDoubleDeepQNetwork:
         self.offload_store[episode][time] = success
 
     #method for tracking capacity utilisation:
-    def do_store_capcity_util(self, episode, time, capacity_util):
+    def do_store_capacity_util(self, episode, time, capacity_util):
         while episode >= len(self.capacity_util_store):
             self.capacity_util_store.append(np.zeros([self.n_time]))
         self.capacity_util_store[episode][time] = capacity_util
@@ -339,5 +339,6 @@ class DuelingDoubleDeepQNetwork:
         if latest_ckpt is not None:
 
             self.saver.restore(self.sess, latest_ckpt)
+
 
 
