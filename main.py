@@ -25,28 +25,38 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
     # --- DELAY COMPONENT ---
     delay_ratio = delay / max_delay if max_delay > 0 else 0
     if delay_ratio > 1:   # deadline missed
-        delay_penalty = 2 * delay_ratio * task_criticality
+        delay_penalty = 5 * delay_ratio * task_criticality
     else:
-        delay_penalty = delay_ratio * task_criticality
+        delay_penalty = 3* delay_ratio * task_criticality
 
     # --- UNFINISHED TASK PENALTY ---
-    unfinish_penalty = 5 * task_criticality if unfinish_task else 0
+    unfinish_penalty = 100 * task_criticality if unfinish_task else 0
 
     # --- CAPACITY UTILIZATION (optional) ---
     if meter_capacity_util is not None:
-        util_penalty = abs(meter_capacity_util - 0.8)  # target ~80% utilization
+        util_penalty = 2* abs(meter_capacity_util - 0.8)  # target ~80% utilization
     else:
         util_penalty = 0
 
     # --- OFFLOADING SUCCESS REWARD ---
     # success_flag = 1 if offloaded and processed, 0 otherwise
-    offload_bonus = 5 * success_flag * task_criticality
+    offload_bonus = 50 * success_flag * task_criticality
 
     # --- COMBINE ---
-    cost = (0.5 * scaled_energy) + (3 * delay_penalty) + unfinish_penalty + util_penalty
-    QoE = 10 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
+    cost = (0.2 * scaled_energy) + (9 * delay_penalty) + unfinish_penalty + util_penalty
+    QoE = 50 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
 
     QoE = float(QoE)
+
+    # return both scalar and breakdown
+    breakdown = {
+        "delay_penalty": delay_penalty,
+        "unfinish_penalty": unfinish_penalty,
+        "util_penalty": util_penalty,
+        "energy_cost": energy_cost,
+        "offload_bonus": offload_bonus
+    }
+
     return QoE
 
 
@@ -171,6 +181,8 @@ def train(meter_RL_list, NUM_EPISODE):
     num_task_drop_list_in_episode = []
     RL_step = 0
     a = 1
+
+    
 
     #adding a list to track successful offloads and list to store number of tasks arriving
     total_offload_attempt_list = []
