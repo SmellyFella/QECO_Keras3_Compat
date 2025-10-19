@@ -25,7 +25,7 @@ class SmartGrid:
         self.task_count_meter   = 0
         self.task_count_substation = 0
         self.n_actions       = 1 + self.n_substation
-        self.n_features      = 1 + 1 + 1 + 1 + self.n_substation
+        self.n_features      = 1 + 1 + 1 + 1 + 1 + self.n_substation
         self.n_lstm_state    = self.n_substation
 
         self.drop_trans_count = 0
@@ -69,6 +69,15 @@ class SmartGrid:
         self.unfinish_task = np.zeros([self.n_time, self.n_meter])
         self.process_delay_trans = np.zeros([self.n_time, self.n_meter])
         self.substation_drop = np.zeros([self.n_meter, self.n_substation])
+        
+        #Deadline related information
+        self.task_arrival_time = -np.ones([self.n_time, self.n_meter])  # -1 means no active task
+        self.deadline_remaining = 0
+
+        self.task_size_record = np.full((self.n_time, self.n_meter), np.nan)
+        self.task_density_record = np.full((self.n_time, self.n_meter), np.nan)
+        self.task_id_record = np.full((self.n_time, self.n_meter), np.nan)
+
 
         # Queue information initialization
         self.t_meter_comp = -np.ones([self.n_meter])
@@ -91,6 +100,9 @@ class SmartGrid:
                                     'TIME': np.nan, 'REMAIN': np.nan} for _ in range(self.n_substation)] for _ in range(self.n_meter)]
 
         self.task_history = [[] for _ in range(self.n_meter)]
+
+        print("DEBUG: n_substation =", self.n_substation)
+        print("DEBUG: n_features =", self.n_features)
 
     def current_load(self):
       """
@@ -169,21 +181,28 @@ class SmartGrid:
         Meters_OBS = np.zeros([self.n_meter, self.n_features])
         for meter_index in range(self.n_meter):
             if self.arrive_task_size[self.time_count, meter_index] != 0:
+
+                self.deadline_remaining = (
+                  self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
+                )
+                self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
                 
                 Meters_OBS[meter_index, :] = np.hstack([
                     self.arrive_task_size[self.time_count, meter_index], self.t_meter_comp[meter_index],
                     self.t_meter_tran[meter_index],
                     np.squeeze(self.b_substation_comp[meter_index, :]),
-                    self.meter_energy_state[meter_index]])
+                    self.meter_energy_state[meter_index],
+                    self.deadline_remaining[meter_index]
+                    ])
 
         Meters_lstm_state = np.zeros([self.n_meter, self.n_lstm_state])
 
         # Store criticality for later use
         if task_criticality is not None:
             self.task_criticality = task_criticality
-        else:
+        #else:
             # Default: assume all tasks are non-critical if not provided
-            self.task_criticality = np.zeros_like(bitarrive_size, dtype=int)
+            #self.task_criticality = np.zeros_like(bitarrive_size, dtype=int)
 
         return Meters_OBS, Meters_lstm_state
 
@@ -242,6 +261,10 @@ class SmartGrid:
                 'TIME': self.time_count,
                 'SUBSTATION': meter_action_offload[meter_index],
             }
+            self.task_arrival_time[self.time_count, meter_index] = self.time_count
+            self.task_size_record[self.time_count, meter_index] = meter_arrive_task_size
+            self.task_density_record[self.time_count, meter_index] = meter_arrive_task_dens
+            self.task_id_record[self.time_count, meter_index] = self.METER_TASK[meter_index]
 
             if meter_action_local[meter_index] == 1:
                 self.meter_computation_queue[meter_index].put(tmp_dict)
@@ -566,14 +589,25 @@ class SmartGrid:
                 # observation is zero if there is no task arrival
                 if self.arrive_task_size[self.time_count, meter_index] != 0:
                     # state [A, B^{comp}, B^{tran}, [B^{substation}]]
+
+                    self.deadline_remaining = (
+                        self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
+                      )
+                    self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
+
                     Meters_OBS_[meter_index, :] = np.hstack([
                         self.arrive_task_size[self.time_count, meter_index],         #Size of the current task
                         self.t_meter_comp[meter_index] - self.time_count + 1,        #Meters computation time 
                         self.t_meter_tran[meter_index] - self.time_count + 1,        #Meters transmission time
                         self.b_substation_comp[meter_index, :],                      #Substation computational load/capacities
-                        self.meter_energy_state[meter_index]])                       #idle/normal/peak level for meters
-
+                        self.meter_energy_state[meter_index],                        #idle/normal/peak level for meters
+                        self.deadline_remaining[meter_index]                                      #Remaining task deadline
+                        ])                       
+                
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
+
+                if(meter_index == 1):
+                  print(Meters_OBS_[1, :])
 
         return Meters_OBS_, Meters_lstm_state_, done
 
