@@ -169,6 +169,7 @@ class SmartGrid:
         Meters_OBS = np.zeros([self.n_meter, self.n_features])
         for meter_index in range(self.n_meter):
             if self.arrive_task_size[self.time_count, meter_index] != 0:
+                
                 Meters_OBS[meter_index, :] = np.hstack([
                     self.arrive_task_size[self.time_count, meter_index], self.t_meter_comp[meter_index],
                     self.t_meter_tran[meter_index],
@@ -566,15 +567,16 @@ class SmartGrid:
                 if self.arrive_task_size[self.time_count, meter_index] != 0:
                     # state [A, B^{comp}, B^{tran}, [B^{substation}]]
                     Meters_OBS_[meter_index, :] = np.hstack([
-                        self.arrive_task_size[self.time_count, meter_index],
-                        self.t_meter_comp[meter_index] - self.time_count + 1,
-                        self.t_meter_tran[meter_index] - self.time_count + 1,
-                        self.b_substation_comp[meter_index, :],
-                        self.meter_energy_state[meter_index]])
+                        self.arrive_task_size[self.time_count, meter_index],         #Size of the current task
+                        self.t_meter_comp[meter_index] - self.time_count + 1,        #Meters computation time 
+                        self.t_meter_tran[meter_index] - self.time_count + 1,        #Meters transmission time
+                        self.b_substation_comp[meter_index, :],                      #Substation computational load/capacities
+                        self.meter_energy_state[meter_index]])                       #idle/normal/peak level for meters
 
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
 
         return Meters_OBS_, Meters_lstm_state_, done
+
 
 
 
