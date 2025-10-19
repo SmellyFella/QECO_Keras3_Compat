@@ -53,7 +53,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
         "delay_penalty": delay_penalty,
         "unfinish_penalty": unfinish_penalty,
         "util_penalty": util_penalty,
-        "energy_cost": energy_cost,
+        "energy_cost": cost,
         "offload_bonus": offload_bonus
     }
 
@@ -658,6 +658,7 @@ if __name__ == "__main__":
                            
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
+
 
 
 
