@@ -25,7 +25,7 @@ class SmartGrid:
         self.task_count_meter   = 0
         self.task_count_substation = 0
         self.n_actions       = 1 + self.n_substation
-        self.n_features      = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + self.n_substation
+        self.n_features      = 7 + (2 * self.n_substation)
         self.n_lstm_state    = self.n_substation
 
         self.drop_trans_count = 0
@@ -225,10 +225,14 @@ class SmartGrid:
         meter_action_offload = np.zeros([self.n_meter], np.int32)
 
         for meter_index in range(self.n_meter):
-            meter_action = action[meter_index]
-            meter_action_offload[meter_index] = int(meter_action - 1)
-            if meter_action == 0:
-                meter_action_local[meter_index] = 1
+          
+          meter_action = action[meter_index]
+
+          if meter_action == self.n_actions:
+            print("\n\n\n\n##########ACTIONS EQUAL AHHHHHH########\n\n\n\n")
+          meter_action_offload[meter_index] = int(meter_action - 1)
+          if meter_action == 0:
+            meter_action_local[meter_index] = 1
 
         #Capacity utilisation code
         for meter_idx in range(self.n_meter):
@@ -605,8 +609,8 @@ class SmartGrid:
                       )
                     self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
                     
-                    meter_local_queue_len = self.meter_computation_queue[meter_index].qsize()
-                    meter_transmit_queue_len = self.meter_transmission_queue[meter_index].qsize()
+                    meter_local_queue_len = np.clip(self.meter_computation_queue[meter_index].qsize(), 0, 1)
+                    meter_transmit_queue_len = np.clip(self.meter_transmission_queue[meter_index].qsize(), 0, 1)
                     substation_queue_len = np.array([
                         self.substation_computation_queue[meter_index][s].qsize() 
                         for s in range(self.n_substation)
