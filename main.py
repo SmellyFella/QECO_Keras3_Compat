@@ -13,11 +13,96 @@ def normalize(parameter, minimum, maximum):
     normalized_parameter = (parameter - minimum) / (maximum - minimum)
     return normalized_parameter
 
+#Final reward update:
+def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
+    meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy,
+    success_flag=0, meter_capacity_util=None, task_criticality=1.0,
+    deadline_remaining=None, queue_len_local=None, queue_len_transmit=None):
+
+    # --- ENERGY ---
+    substation_energy = np.sum(substation_comp_energy)
+    idle_energy = np.sum(meter_idle_energy)
+    total_energy = meter_comp_energy + meter_trans_energy + substation_energy + idle_energy
+    # Scale total energy to 0–1 range with smooth curve to prevent saturation
+    scaled_energy = np.tanh(normalize(total_energy, 0, 20))  
+
+    # --- DELAY ---
+    # Normalize delay (dense feedback even for smaller delays)
+    delay_ratio = delay / max_delay if max_delay > 0 else 0
+    delay_penalty = np.power(np.clip(delay_ratio, 0, 1), 0.5) * task_criticality  # sqrt curve: more sensitivity to small delays
+    delay_penalty = 2.5 * delay_penalty  # moderate weight, denser feedback
+
+    # --- QUEUE PENALTY ---
+    queue_penalty = 0
+    if queue_len_local is not None:
+        queue_penalty += 0.5 * np.tanh(queue_len_local / 5)
+    if queue_len_transmit is not None:
+        queue_penalty += 0.5 * np.tanh(queue_len_transmit / 5)
+
+    # --- DEADLINE REWARD ---
+    # Smooth, continuous reward that decays as deadline approaches
+    if deadline_remaining is not None:
+        deadline_reward = np.exp(-3 * np.clip(1 - deadline_remaining, 0, 1))  # closer to 0 → lower reward
+    else:
+        deadline_reward = 0
+
+    # --- UNFINISHED TASK PENALTY ---
+    # Provide a smaller penalty each step when near deadline, not only on failure
+    if unfinish_task:
+        unfinish_penalty = 10 * task_criticality
+    else:
+        unfinish_penalty = 2 * (1 - np.exp(-3 * delay_ratio)) * task_criticality  # small continuous delay pressure
+
+    # --- CAPACITY UTILIZATION ---
+    util_penalty = 0
+    if meter_capacity_util is not None:
+        util_penalty = np.clip(2 * abs(meter_capacity_util - 0.8), 0, 2)
+
+    # --- OFFLOAD SUCCESS ---
+    offload_bonus = 4 * success_flag * task_criticality
+
+    # --- Combine (rebalanced weights) ---
+    cost = (
+        1.5 * scaled_energy
+        + 2.5 * delay_penalty
+        + 1.5 * queue_penalty
+        + unfinish_penalty
+        + 0.8 * util_penalty
+        - 3.0 * deadline_reward
+    )
+
+    # --- Final QoE ---
+    QoE = 10 - cost + offload_bonus + (5 * success_flag * task_criticality)
+    QoE = float(np.clip(QoE, -50, 50))
+
+    # --- Logging ---
+    if not hasattr(QoE_Function, 'log_buffer'):
+        QoE_Function.log_buffer = []
+    QoE_Function.log_buffer.append((
+        QoE,
+        {
+            'scaled_energy': float(scaled_energy),
+            'delay_penalty': float(delay_penalty),
+            'queue_penalty': float(queue_penalty),
+            'unfinish_penalty': float(unfinish_penalty),
+            'util_penalty': float(util_penalty),
+            'deadline_reward': float(deadline_reward),
+            'offload_bonus': float(offload_bonus)
+        }
+    ))
+
+    if len(QoE_Function.log_buffer) > 0:
+      latest = QoE_Function.log_buffer[-1]
+      print(latest)
+
+    return QoE
+
+"""
 #Updated reward function:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy, success_flag=0, meter_capacity_util=None, task_criticality=1.0, deadline_remaining=None,
     queue_len_local=None,
     queue_len_transmit=None):
-    """
+   
       # --- ENERGY ---
     substation_energy = np.sum(substation_comp_energy)
     idle_energy = np.sum(meter_idle_energy)
@@ -30,6 +115,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
 
     # --- QUEUE PENALTY ---
     queue_penalty = 0
+    
     if queue_len_local is not None:
         queue_penalty += 0.5 * np.tanh(queue_len_local / 5)
     if queue_len_transmit is not None:
@@ -63,6 +149,8 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
         - 2.0 * deadline_reward
     )
 
+    #print("scaled en: ", scaled_energy, ", delay pen: ", delay_penalty, ", queue pen: ", queue_penalty, ", unfinish pen: ", unfinish_penalty, ", util pen: ", util_penalty, ", deadline rew: ", deadline_reward)
+
     components = {
       'scaled_energy': float(scaled_energy) if np.isscalar(scaled_energy) else float(np.sum(scaled_energy)),
       'delay_penalty': float(delay_penalty),
@@ -79,9 +167,8 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
     QoE_Function.log_buffer.append((QoE, components))
 
     return QoE
-
-
-    """
+"""
+"""
     # --- QUEUE PENALTY ---
     queue_penalty = 0
     if queue_len_local is not None:
@@ -138,7 +225,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp
     }
 
     return QoE
-    
+    """
 
 #####OLD QoE (Reward) Function.  
 """
