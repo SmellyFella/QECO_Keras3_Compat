@@ -25,7 +25,7 @@ class SmartGrid:
         self.task_count_meter   = 0
         self.task_count_substation = 0
         self.n_actions       = 1 + self.n_substation
-        self.n_features      = 1 + 1 + 1 + 1 + 1 + self.n_substation
+        self.n_features      = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + self.n_substation
         self.n_lstm_state    = self.n_substation
 
         self.drop_trans_count = 0
@@ -186,13 +186,23 @@ class SmartGrid:
                   self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
                 )
                 self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
+
+                meter_local_queue_len = self.meter_computation_queue[meter_index].qsize()
+                meter_transmit_queue_len = self.meter_transmission_queue[meter_index].qsize()
+                substation_queue_len = np.array([
+                    self.substation_computation_queue[meter_index][s].qsize() 
+                    for s in range(self.n_substation)
+                ])
                 
                 Meters_OBS[meter_index, :] = np.hstack([
                     self.arrive_task_size[self.time_count, meter_index], self.t_meter_comp[meter_index],
                     self.t_meter_tran[meter_index],
                     np.squeeze(self.b_substation_comp[meter_index, :]),
                     self.meter_energy_state[meter_index],
-                    self.deadline_remaining[meter_index]
+                    self.deadline_remaining[meter_index],
+                    meter_local_queue_len,
+                    meter_transmit_queue_len,
+                    substation_queue_len
                     ])
 
         Meters_lstm_state = np.zeros([self.n_meter, self.n_lstm_state])
@@ -594,20 +604,27 @@ class SmartGrid:
                         self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
                       )
                     self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
-
+                    
+                    meter_local_queue_len = self.meter_computation_queue[meter_index].qsize()
+                    meter_transmit_queue_len = self.meter_transmission_queue[meter_index].qsize()
+                    substation_queue_len = np.array([
+                        self.substation_computation_queue[meter_index][s].qsize() 
+                        for s in range(self.n_substation)
+                      ])
+                    
                     Meters_OBS_[meter_index, :] = np.hstack([
                         self.arrive_task_size[self.time_count, meter_index],         #Size of the current task
                         self.t_meter_comp[meter_index] - self.time_count + 1,        #Meters computation time 
                         self.t_meter_tran[meter_index] - self.time_count + 1,        #Meters transmission time
                         self.b_substation_comp[meter_index, :],                      #Substation computational load/capacities
                         self.meter_energy_state[meter_index],                        #idle/normal/peak level for meters
-                        self.deadline_remaining[meter_index]                                      #Remaining task deadline
+                        self.deadline_remaining[meter_index],
+                        meter_local_queue_len,
+                        meter_transmit_queue_len,
+                        substation_queue_len                                      #Remaining task deadline
                         ])                       
                 
                 Meters_lstm_state_[meter_index, :] = np.hstack(self.substation_meter_m_observe)
-
-                if(meter_index == 1):
-                  print(Meters_OBS_[1, :])
 
         return Meters_OBS_, Meters_lstm_state_, done
 
