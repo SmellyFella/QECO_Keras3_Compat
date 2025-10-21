@@ -61,6 +61,11 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
     # --- OFFLOAD SUCCESS ---
     offload_bonus = 4 * success_flag * task_criticality
 
+    # --- Small reward for processed work --- #
+    #processed = env.meter_bit_processed[env.time_count-1, meter_index]
+    #progress_reward = alpha * normalize(processed, 0, some_max)  # small bonus
+  
+
     # --- Combine (rebalanced weights) ---
     cost = (
         1.5 * scaled_energy
@@ -93,7 +98,7 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
 
     if len(QoE_Function.log_buffer) > 0:
       latest = QoE_Function.log_buffer[-1]
-      print(latest)
+      #print(latest)
 
     return QoE
 
@@ -390,6 +395,15 @@ def train(meter_RL_list, NUM_EPISODE):
                 # Add small noise for variability
                 noise = np.random.normal(0, 0.05 * scaled)
                 size = max(0, scaled + noise)
+
+                # Only allow tasks at smart meter intervals
+                if t % env.smart_meter_period != 0:
+                    continue
+
+                # Apply probability filter (0.2 chance)
+                if np.random.rand() > Config.TASK_ARRIVE_PROB:
+                    continue
+
                 bitarrive_size[t, meter] = size
 
                 if size > 0:
@@ -412,7 +426,7 @@ def train(meter_RL_list, NUM_EPISODE):
         bitarrive_dens *= mask
         task_criticality = (task_criticality * mask).astype(int)
         
-        # Compute computational density (urgency) based on demand level
+        """# Compute computational density (urgency) based on demand level
         bitarrive_dens = np.zeros([env.n_time, env.n_meter])
         for i in range(env.n_time):
             for j in range(env.n_meter):
@@ -421,7 +435,7 @@ def train(meter_RL_list, NUM_EPISODE):
                     if bitarrive_size[i, j] > (env.max_arrive_size + env.min_arrive_size) / 2:
                         bitarrive_dens[i, j] = max(Config.TASK_URGENCY_FACTOR)
                     else:
-                        bitarrive_dens[i, j] = np.random.choice(Config.TASK_URGENCY_FACTOR)
+                        bitarrive_dens[i, j] = np.random.choice(Config.TASK_URGENCY_FACTOR)"""
 
         #deadline generation:
 
