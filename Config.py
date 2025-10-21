@@ -12,7 +12,7 @@ class Config(object):
     METER_PROC_LOSS   = 0.01                    # Energy cost of sampling in kWh
     METER_LINE_LOSS   = 0.03                  # Cost of energy to transmit reading to a substation
     METER_IDLE_ENERGY   = 0.001                  # Energy draw whilst idle
-    SUBSTATION_COMP_ENERGY = 0.5                    # Energy to process readings or route power flows
+    SUBSTATION_COMP_ENERGY = 0.01                    # Energy to process readings or route power flows
 
     # Task Requirement
     TASK_URGENCY_FACTOR  = [1, 3, 5]      # Task Energy Density
@@ -32,7 +32,7 @@ class Config(object):
 
 
     # Simulation scenario
-    N_EPISODE        = 500                # Number of Episodes
+    N_EPISODE        = 1000                # Number of Episodes
     N_TIME_SLOT      = 100                  # Number of Time Slots
     DURATION         = 0.1                  # Time Slot Duration
     TASK_ARRIVE_PROB = 0.2                  # Task Generation Probability
