@@ -16,7 +16,7 @@ def normalize(parameter, minimum, maximum):
 #Final reward update:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
     meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy,
-    success_flag=0, meter_capacity_util=None, task_criticality=1.0,
+    success_flag, meter_capacity_util=None, task_criticality=1.0,
     deadline_remaining=None, queue_len_local=None, queue_len_transmit=None):
 
     # --- ENERGY ---
@@ -59,8 +59,11 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
         util_penalty = np.clip(2 * abs(meter_capacity_util - 0.8), 0, 2)
 
     # --- OFFLOAD SUCCESS ---
+    #rint("task crit: ", task_criticality)
+    #print("success flag: ", success_flag)
+    
     offload_bonus = 4 * success_flag * task_criticality
-
+    #print("offload bonus: ", offload_bonus)
     # --- Small reward for processed work --- #
     #processed = env.meter_bit_processed[env.time_count-1, meter_index]
     #progress_reward = alpha * normalize(processed, 0, some_max)  # small bonus
@@ -370,6 +373,8 @@ def train(meter_RL_list, NUM_EPISODE):
 
     offload_success_list = []
 
+    meter_RL_choice_history = []
+
     for episode in range(NUM_EPISODE):
 
         print("\n-*-**-***-*****-********-*************-********-*****-***-**-*-")
@@ -477,8 +482,6 @@ def train(meter_RL_list, NUM_EPISODE):
         
         # TRAIN DRL
         while True:
-    
-    
             # PERFORM ACTION
             action_all = np.zeros([env.n_meter])
             for meter_index in range(env.n_meter):
@@ -490,6 +493,8 @@ def train(meter_RL_list, NUM_EPISODE):
                     action_all[meter_index] = meter_RL_list[meter_index].choose_action(observation)
             #        if observation[0] != 0:
             meter_RL_list[meter_index].do_store_action(episode, env.time_count, action_all[meter_index])
+
+            meter_RL_choice_history.append(action_all.copy())
 
             # OBSERVE THE NEXT STATE AND PROCESS DELAY (REWARD)
             observation_all_, lstm_state_all_, done = env.step(action_all)
@@ -508,8 +513,9 @@ def train(meter_RL_list, NUM_EPISODE):
 
             
 
-            #Track the successful offloads:
+            """#Track the successful offloads:
             for meter_index in range(env.n_meter):
+                
                 # Example: action==1 means "offload to fog"
                 processed_bits = env.meter_bit_processed[env.time_count -1, meter_index]
                 if action_all[meter_index] > 0: # and np.sum(processed_bits) > 0:
@@ -521,13 +527,18 @@ def train(meter_RL_list, NUM_EPISODE):
                     episode,
                     env.time_count-1,   # current timestep
                     success_flag
-                )
+                )"""
                 #print(f"Episode {episode}, t={env.time_count-1}, UE {meter_index}, action={action_all[meter_index]}, processed={processed_bits}")
                 
           
 
             # STORE MEMORY; STORE TRANSITION IF THE TASK PROCESS DELAY IS JUST UPDATED
             for meter_index in range(env.n_meter):
+
+                if env.meter_offloads_flag[meter_index] == 1:
+                  success_flag = 1
+                else:
+                  success_flag = 0
 
                 history[env.time_count - 1][meter_index]['observation'] = observation_all[meter_index, :]
                 history[env.time_count - 1][meter_index]['lstm'] = np.squeeze(lstm_state_all[meter_index, :])
@@ -616,7 +627,34 @@ def train(meter_RL_list, NUM_EPISODE):
                             f.write('\n' + str(Drop_Count(meter_RL_list, episode)))
 
                 
-               
+                # after done==True, compute:
+                # action_hist: how many times each action was taken this episode
+                # Flatten the nested list of lists
+                flat_actions = np.array(meter_RL_choice_history).flatten().astype(int)
+                action_hist = np.bincount(flat_actions, minlength=env.n_actions)
+                print("Action histogram:", action_hist)   # store this each episode in a file
+                with open("Action.txt", 'a') as f:
+                            f.write('\n' + str(action_hist))
+
+
+                # aggregate saved buffer
+                buf = QoE_Function.log_buffer
+                if len(buf):
+                    comps_sum = {}
+                    for q, comp in buf:
+                        for k,v in comp.items():
+                            comps_sum[k] = comps_sum.get(k, 0.0) + v
+                    # print averages
+                    print("Reward components avg:", {k: comps_sum[k]/len(buf) for k in comps_sum})
+                    QoE_Function.log_buffer = []
+
+                # queue size snapshot (average over time or final)
+                avg_meter_comp_q = np.mean([q.qsize() for q in env.meter_computation_queue])
+                avg_meter_trans_q = np.mean([q.qsize() for q in env.meter_transmission_queue])
+                avg_substation_q = np.mean([np.mean([env.substation_computation_queue[m][s].qsize()
+                                                    for m in range(env.n_meter)])
+                                            for s in range(env.n_substation)])
+                print("Avg queues: meter_comp", avg_meter_comp_q, "meter_trans", avg_meter_trans_q, "substations(mean)", avg_substation_q)
 
 
 
