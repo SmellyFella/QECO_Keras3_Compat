@@ -34,6 +34,7 @@ class SmartGrid:
         
         #Added successful offloads count to track how many tasks were successfully offloaded
         self.successful_offloads = 0
+        self.meter_offloads_flag = np.zeros([self.n_meter])
         #Criticality store for critical tasks
         self.task_criticality = np.zeros([self.n_time, self.n_meter], dtype=int)
         #deadline store for task deadlines
@@ -130,7 +131,7 @@ class SmartGrid:
         self.drop_meter_count = 0
         #Added the reset for successful offloads
         self.successful_offloads = 0
-
+        self.meter_offloads_flag = np.zeros([self.n_meter])
         #reset the meter capacity tracker
         self.meter_capacity_util = np.zeros(self.n_meter)
 
@@ -231,6 +232,8 @@ class SmartGrid:
             meter_action_local[meter_index] = 1
           else:
             meter_action_offload[meter_index] = int(meter_action - 1)
+            self.meter_offloads_flag[meter_index] = 1
+
 
         #Capacity utilisation code
         for meter_idx in range(self.n_meter):
@@ -456,12 +459,29 @@ class SmartGrid:
             }
 
 
+            #if meter_action_local[meter_index] == 0:
+             #   self.meter_transmission_queue[meter_index].put(tmp_dict)
+            
             if meter_action_local[meter_index] == 0:
-                self.meter_transmission_queue[meter_index].put(tmp_dict)
+              self.meter_transmission_queue[meter_index].put(tmp_dict)
+            """        if __debug__:
+              print(f"t={self.time_count} meter {meter_index} -> transmit queue (sub {tmp_dict['SUBSTATION']}) size now {self.meter_transmission_queue[meter_index].qsize()}")
+
+          # after enqueue to substation queue (in transmission process)
+            if self.local_transmit_task[meter_index]['REMAIN'] <= 0:
+              self.substation_computation_queue[meter_index][self.local_transmit_task[meter_index]['SUBSTATION']].put(tmp_dict)
+            if __debug__:
+              sidx = self.local_transmit_task[meter_index].get('SUBSTATION', np.nan)
+              if np.isnan(sidx):
+                  print(f"Warning: meter {meter_index} has NaN substation at t={self.time_count}")
+                  continue  # skip this iteration safely
+              else:
+                  sidx = int(sidx)
+              print(f"t={self.time_count} meter {meter_index} placed task into substation {sidx}, sub qsize now {self.substation_computation_queue[meter_index][sidx].qsize()}")
 
           
 
-
+            """
             
             for cycle in range(self.n_cycle):
 
@@ -525,6 +545,10 @@ class SmartGrid:
                         self.task_count_substation = self.task_count_substation + 1
 
                         substation_index = self.local_transmit_task[meter_index]['SUBSTATION']
+                        #if(substation_index >= 0):
+                        #  print("ADDING TASK TO: ", substation_index)
+                        #else:
+                        #  print("sub index value: ", substation_index)
                         self.b_substation_comp[meter_index, substation_index] = self.b_substation_comp[meter_index, substation_index] + self.local_transmit_task[meter_index]['SIZE']
                         
                         self.process_delay_trans[self.local_transmit_task[meter_index]['TIME'], meter_index] = self.time_count - self.local_transmit_task[meter_index]['TIME'] + 1
