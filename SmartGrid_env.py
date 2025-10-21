@@ -227,12 +227,10 @@ class SmartGrid:
         for meter_index in range(self.n_meter):
           
           meter_action = action[meter_index]
-
-          if meter_action == self.n_actions:
-            print("\n\n\n\n##########ACTIONS EQUAL AHHHHHH########\n\n\n\n")
-          meter_action_offload[meter_index] = int(meter_action - 1)
           if meter_action == 0:
             meter_action_local[meter_index] = 1
+          else:
+            meter_action_offload[meter_index] = int(meter_action - 1)
 
         #Capacity utilisation code
         for meter_idx in range(self.n_meter):
