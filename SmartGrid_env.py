@@ -19,6 +19,8 @@ class SmartGrid:
         self.substation_p_comp   = Config.SUBSTATION_COMP_ENERGY
 
         self.smart_meter_period = Config.SMART_METER_PERIOD
+
+        self.offload_success = np.zeros([self.n_time, self.n_meter], dtype=int)
         
 
         self.time_count      = 0
@@ -149,7 +151,7 @@ class SmartGrid:
         self.local_transmit_task = []
         self.substation_process_task = []
 
-
+        self.offload_success = np.zeros([self.n_time, self.n_meter])
 
         self.meter_computation_queue = [queue.Queue() for _ in range(self.n_meter)]
         self.meter_transmission_queue = [queue.Queue() for _ in range(self.n_meter)]
@@ -412,6 +414,12 @@ class SmartGrid:
 
                             #Added increment to count successful task offloads
                             self.successful_offloads += 1
+
+                            orig_time = self.substation_process_task[meter_index][substation_index]['TIME']
+                            orig_meter = self.substation_process_task[meter_index][substation_index]['METER_ID']
+                            # guard indices
+                            if 0 <= orig_time < self.n_time and 0 <= orig_meter < self.n_meter:
+                                self.offload_success[orig_time, orig_meter] = 1
                             
                             #self.task_history[self.substation_process_task[meter_index][substation_index]['METER_ID']][self.substation_process_task[meter_index][substation_index]['TASK_ID']]['d_state'][self.substation_process_task[meter_index][substation_index]['DIV']] = 1
                             self.substation_process_task[meter_index][substation_index]['REMAIN'] = np.nan
@@ -439,8 +447,125 @@ class SmartGrid:
                             = np.max([self.b_substation_comp[meter_index, substation_index]
                                         - self.line_cap_substation[substation_index]/ meter_arrive_task_dens / self.substation_meter_m[substation_index]
                                         - self.substation_drop[meter_index, substation_index], 0])
+        
+        
+        
+        #gPT PROVIDED QUEUE UPDATE:
+        # TRANSMISSION QUEUE UPDATE (fixed)
+        for meter_index in range(self.n_meter):
+          meter_feeder_cap = np.squeeze(self.feeder_cap_meter[meter_index,:])
+          meter_arrive_task_size = np.squeeze(self.arrive_task_size[self.time_count, meter_index])
+          meter_arrive_task_dens = np.squeeze(self.arrive_task_dens[self.time_count, meter_index])
 
-        # TRANSMISSION QUEUE UPDATE ===================
+          tmp_dict = {
+              'DIV' : 0,
+              'METER_ID': meter_index,
+              'TASK_ID': self.METER_TASK[meter_index],
+              'SIZE': meter_arrive_task_size,
+              'DENS': meter_arrive_task_dens,
+              'TIME': self.time_count,
+              # store integer substation index (or -1 for local)
+              'SUBSTATION': int(meter_action_offload[meter_index]) if not np.isnan(meter_action_offload[meter_index]) else -1,
+          }
+
+          # enqueue transmission if action chose offload (local action==0 -> local processing)
+          if meter_action_local[meter_index] == 0:
+              self.meter_transmission_queue[meter_index].put(tmp_dict)
+              #if __debug__:
+                  #print(f"t={self.time_count} meter {meter_index} -> transmit queue (sub {tmp_dict['SUBSTATION']}) size now {self.meter_transmission_queue[meter_index].qsize()}")
+
+          # PROCESS TRANSMISSION QUEUE -> local_transmit_task
+          for cycle in range(self.n_cycle):
+              # pick a transmission task if transmitter is idle
+              if math.isnan(self.local_transmit_task[meter_index]['REMAIN']) and (not self.meter_transmission_queue[meter_index].empty()):
+                  while not self.meter_transmission_queue[meter_index].empty():
+                      get_task = self.meter_transmission_queue[meter_index].get()
+                      if get_task['SIZE'] != 0:
+                          if self.time_count - get_task['TIME'] + 1 <= self.max_delay:
+                              # Ensure SUBSTATION is a valid integer index
+                              try:
+                                  sidx = int(get_task.get('SUBSTATION', -1))
+                              except:
+                                  sidx = -1
+                              # clamp sidx
+                              if sidx < 0 or sidx >= self.n_substation:
+                                  # invalid target -> treat as failed transmit (drop or route to default substation 0)
+                                  sidx = 0
+                                  #if __debug__:
+                                      #print(f"Warning: invalid substation index in get_task; defaulting to 0 (meter {meter_index} t={self.time_count})")
+                              self.local_transmit_task[meter_index]['METER_ID'] = get_task['METER_ID']
+                              self.local_transmit_task[meter_index]['TASK_ID'] = get_task['TASK_ID']
+                              self.local_transmit_task[meter_index]['SIZE'] = get_task['SIZE']
+                              self.local_transmit_task[meter_index]['DENS'] = get_task['DENS']
+                              self.local_transmit_task[meter_index]['TIME'] = get_task['TIME']
+                              self.local_transmit_task[meter_index]['SUBSTATION'] = sidx
+                              self.local_transmit_task[meter_index]['REMAIN'] = self.local_transmit_task[meter_index]['SIZE']
+                              self.local_transmit_task[meter_index]['DIV'] = get_task['DIV']
+                              break
+                          else:
+                              # too old -> mark unfinished
+                              self.process_delay[get_task['TIME'], meter_index] = self.max_delay
+                              self.unfinish_task[get_task['TIME'], meter_index] = 1
+
+              # if a transmission is ongoing, process it
+              if self.local_transmit_task[meter_index]['REMAIN'] > 0:
+                  sidx = int(self.local_transmit_task[meter_index]['SUBSTATION'])
+                  # protector: ensure sidx in range
+                  if sidx < 0 or sidx >= self.n_substation:
+                      # treat as drop (invalid target)
+                      #if __debug__:
+                          #print(f"Warning: local_transmit_task has invalid sidx {sidx} for meter {meter_index} at t={self.time_count}. Dropping.")
+                      self.local_transmit_task[meter_index]['REMAIN'] = np.nan
+                      self.drop_trans_count += 1
+                  else:
+                      # compute transfer amount (feeder cap for that substation)
+                      transfer_amount = meter_feeder_cap[sidx]
+                      # energy cost
+                      amount_sent = min(self.local_transmit_task[meter_index]['REMAIN'], transfer_amount)
+                      self.meter_tran_energy[self.local_transmit_task[meter_index]['TIME'], meter_index] += amount_sent * self.meter_p_tran
+                      # record transmitted (this is "energy" amount unit)
+                      self.meter_bit_transmitted[self.local_transmit_task[meter_index]['TIME'], meter_index] += amount_sent
+                      self.local_transmit_task[meter_index]['REMAIN'] -= amount_sent
+
+                      # if finished sending, push into substation queue here (safe place)
+                      if self.local_transmit_task[meter_index]['REMAIN'] <= 0:
+                          # create canonical dict for substation consumption
+                          subtask = {
+                              'METER_ID': self.local_transmit_task[meter_index]['METER_ID'],
+                              'TASK_ID': self.local_transmit_task[meter_index]['TASK_ID'],
+                              'SIZE': self.local_transmit_task[meter_index]['SIZE'],
+                              'DENS': self.local_transmit_task[meter_index]['DENS'],
+                              'TIME': self.local_transmit_task[meter_index]['TIME'],
+                              'SUBSTATION': int(self.local_transmit_task[meter_index]['SUBSTATION']),
+                              'DIV': self.local_transmit_task[meter_index]['DIV']
+                          }
+                          self.substation_computation_queue[meter_index][subtask['SUBSTATION']].put(subtask)
+                          self.task_count_substation += 1
+                          # update bookkeeping for substation load
+                          substation_index = subtask['SUBSTATION']
+                          self.b_substation_comp[meter_index, substation_index] += subtask['SIZE']
+                          self.process_delay_trans[subtask['TIME'], meter_index] = self.time_count - subtask['TIME'] + 1
+                          # mark transmit task slot idle
+                          self.local_transmit_task[meter_index]['REMAIN'] = np.nan
+                          #if __debug__:
+                              #print(f"t={self.time_count} meter {meter_index} placed task into substation {substation_index}, sub qsize now {self.substation_computation_queue[meter_index][substation_index].qsize()}")
+
+                      # deadline expire condition
+                      elif self.time_count - self.local_transmit_task[meter_index]['TIME'] + 1 == self.max_delay:
+                          self.local_transmit_task[meter_index]['REMAIN'] = np.nan
+                          self.process_delay[self.local_transmit_task[meter_index]['TIME'], meter_index] = self.max_delay
+                          self.unfinish_task[self.local_transmit_task[meter_index]['TIME'], meter_index] = 1
+                          self.drop_trans_count += 1
+
+              # update predicted finish time/t_meter_tran if needed (unchanged)
+              if meter_arrive_task_size != 0:
+                  tmp_tilde_t_meter_tran = np.max([self.t_meter_tran[meter_index] + 1, self.time_count])
+                  self.t_meter_tran[meter_index] = np.min([tmp_tilde_t_meter_tran
+                                                        + math.ceil(meter_arrive_task_size * (1 - meter_action_local[meter_index])
+                                                                  / meter_feeder_cap[int(np.clip(meter_action_offload[meter_index],0,self.n_substation-1))]) - 1,
+                                                        self.time_count + self.max_delay - 1])
+
+        """# TRANSMISSION QUEUE UPDATE ===================
         for meter_index in range(self.n_meter):
             #meter_feeder_cap = np.squeeze(self.feeder_cap_meter[meter_index,:])[1]/self.n_cycle
 
@@ -464,7 +589,9 @@ class SmartGrid:
             
             if meter_action_local[meter_index] == 0:
               self.meter_transmission_queue[meter_index].put(tmp_dict)
-            """        if __debug__:
+            """
+
+        """        if __debug__:
               print(f"t={self.time_count} meter {meter_index} -> transmit queue (sub {tmp_dict['SUBSTATION']}) size now {self.meter_transmission_queue[meter_index].qsize()}")
 
           # after enqueue to substation queue (in transmission process)
@@ -478,10 +605,10 @@ class SmartGrid:
               else:
                   sidx = int(sidx)
               print(f"t={self.time_count} meter {meter_index} placed task into substation {sidx}, sub qsize now {self.substation_computation_queue[meter_index][sidx].qsize()}")
-
+            """
           
 
-            """
+        """
             
             for cycle in range(self.n_cycle):
 
@@ -568,7 +695,7 @@ class SmartGrid:
                     self.t_meter_comp[meter_index] = np.min([tmp_tilde_t_meter_tran
                                                             + math.ceil(meter_arrive_task_size * (1 - meter_action_local[meter_index])
                                                             / meter_feeder_cap[meter_action_offload[meter_index]]) - 1,
-                                                            self.time_count + self.max_delay - 1])
+                                                            self.time_count + self.max_delay - 1])"""
             
             # Calculate communication delay
         comm_delay = Config.FIXED_COMM_DELAY
