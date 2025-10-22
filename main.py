@@ -539,6 +539,8 @@ def train(meter_RL_list, NUM_EPISODE):
                   success_flag = 1
                 else:
                   success_flag = 0
+                
+                success_flag = int(env.offload_success[time_index, meter_index])
 
                 history[env.time_count - 1][meter_index]['observation'] = observation_all[meter_index, :]
                 history[env.time_count - 1][meter_index]['lstm'] = np.squeeze(lstm_state_all[meter_index, :])
