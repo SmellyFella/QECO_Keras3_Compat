@@ -4,8 +4,8 @@ class Config(object):
     N_METER             = 20                   # Number of Smart meters
     N_SUBSTATION           = 2                    # Number of Fog Servers
     METER_GEN_CAP_KW      = 5                 # Max reporting rate (kW) for meters
-    METER_LINE_CAP_KW      = 20                   # Max communication bandwidth (kW)
-    SUBSTATION_TRANS_CAP_KW    = 500                   # Substation Servers Handling Capacity (kWh)
+    METER_LINE_CAP_KW      = 100                   # Max communication bandwidth (kW)
+    SUBSTATION_TRANS_CAP_KW    = 2500                   # Substation Servers Handling Capacity (kWh)
 
     # Energy consumption settings
     METER_ENERGY_STATE  = [0.25, 0.50, 0.75]   # Meter Power profiles (idle, normal, peak) in kWh
