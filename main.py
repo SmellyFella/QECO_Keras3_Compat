@@ -19,6 +19,16 @@ def smooth_curve(data, window_size=20):
   window = np.ones(window_size) / window_size
   return np.convolve(data, window, mode = 'same')
 
+def save_plot_data(avg_Qoe_list, avg_delay_list, energy_cons_list, num_drop_list, offload_success_list, tasks_arrived_list):
+  with open("Store.txt", 'a') as f:
+    f.write('\n QOE: ' + str(avg_Qoe_list))
+    f.write('\n Delay: ' + str(avg_delay_list))
+    f.write('\n Energy: ' + str(energy_cons_list))
+    f.write('\n Drops: ' + str(num_drop_list))
+    f.write('\n Offloads: ' + str(offload_success_list))
+    f.write('\n Tasks: ' + str(tasks_arrived_list))
+
+
 #Final reward update:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
     meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy,
@@ -827,16 +837,15 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[5].legend()
 
                     # Subplot for task arrived vs task dropped
-                    axs[6].plot(tasks_arrived_list, marker='x', linestyle='-', color='g', alpha = 0.5, label='Tasks arrived')
                     smoothed_tasks = smooth_curve(tasks_arrived_list, window)
                     axs[6].plot(smoothed_tasks, marker='x', linestyle='-', color='g', label='smoothed')
-                    axs[6].plot(num_drop_list, marker='x', linestyle='-', color='m', alpha = 0.3, label='Num Drops')
                     axs[6].plot(smoothed_drops, linestyle='-', color='m', label='Smoothed Num Drops')
                     axs[6].set_title('', fontsize=14)
                     axs[6].set_ylabel('task amount')
                     axs[6].set_xlabel('Episodes')
                     axs[6].grid(True, linestyle='--', alpha=0.7)
                     axs[6].legend()
+                    
                     
 
                     # Save the figure to a file
@@ -861,6 +870,12 @@ def train(meter_RL_list, NUM_EPISODE):
                 #print("Trans_Drop: ", env.drop_trans_count, "Substation_Drop: ", env.drop_substation_count, "UE_Drop: ", env.drop_meter_count)
                 #print("Drop_Count: ",Drop_Count(meter_RL_list, episode))
 
+                #Combine data into an output
+                if(episode == NUM_EPISODE-1):
+                  save_plot_data(avg_QoE_list,avg_delay_list,energy_cons_list,num_drop_list,offload_success_list,tasks_arrived_list)
+
+
+
                 break # Training Finished
 
 
@@ -875,16 +890,16 @@ if __name__ == "__main__":
     baseline_heuristic_list = list()
 
     for meter in range(Config.N_METER):
-        """meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
+        meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
                                                     learning_rate       = Config.LEARNING_RATE,
                                                     reward_decay        = Config.REWARD_DECAY,
                                                     e_greedy            = Config.E_GREEDY,
                                                     replace_target_iter = Config.N_NETWORK_UPDATE,  
                                                     memory_size         = Config.MEMORY_SIZE,  
-                                                    ))"""
+                                                    ))
 
         
-        meter_RL_list.append(DQN_Base(env.n_time))  ##Used to measure baseline
+        #meter_RL_list.append(DQN_Base(env.n_time))  ##Used to measure baseline
 
         #heuristic_agent = Heuristic_DQN(env.n_actions)
         #baseline_heuristic_list.append(heuristic_agent)
@@ -904,6 +919,8 @@ if __name__ == "__main__":
     Energy = open("Energy.txt", 'w')
     QoE    = open("QoE.txt"   , 'w')
     Drop   = open("Drop.txt"  , 'w')
+
+    Store = open("Store.txt", 'w')
                            
     # TRAIN THE SYSTEM
     train(meter_RL_list, Config.N_EPISODE)
@@ -923,4 +940,3 @@ if __name__ == "__main__":
 
 
 
-'
