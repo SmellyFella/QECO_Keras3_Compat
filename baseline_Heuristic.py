@@ -5,7 +5,7 @@ from collections import deque
 from tensorflow.python.framework import ops
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
-class Hueristic_DQN:
+class Heuristic_DQN:
 
     def __init__(self,
                  n_actions,               
