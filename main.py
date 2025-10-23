@@ -1,5 +1,7 @@
 from SmartGrid_env import SmartGrid
 from D3QN import DuelingDoubleDeepQNetwork
+from baseline_DQN import DQN_Base
+from baseline_Heuristic import Heuristic_DQN
 from Config import Config
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -12,6 +14,10 @@ import shutil
 def normalize(parameter, minimum, maximum):
     normalized_parameter = (parameter - minimum) / (maximum - minimum)
     return normalized_parameter
+
+def smooth_curve(data, window_size=20):
+  window = np.ones(window_size) / window_size
+  return np.convolve(data, window, mode = 'same')
 
 #Final reward update:
 def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
@@ -729,17 +735,23 @@ def train(meter_RL_list, NUM_EPISODE):
                 
                 total_offloads = Cal_Total_Offloads(meter_RL_list, episode)
 
+                window = 20
 
                 avg_QoE_list.append(avg_QoE)
+                smoothed_QoE = smooth_curve(avg_QoE_list, window)
                 avg_delay_list.append(avg_delay)
+                smoothed_delay = smooth_curve(avg_delay_list, window)
                 energy_cons_list.append(avg_energy)
+                smoothed_energy = smooth_curve(energy_cons_list, window)
                 num_drop_list.append(env.drop_trans_count+env.drop_substation_count+env.drop_meter_count)
+                smoothed_drops = smooth_curve(num_drop_list, window)
 
                 total_offload_attempt_list.append(total_offloads)
 
                 avg_reward_list.append(-(Cal_QoE(meter_RL_list, episode)))
 
                 offload_success_list.append(env.successful_offloads)
+                smoothed_offloads = smooth_curve(offload_success_list, window)
 
                 # Append metrics to tracking lists
                 if episode % 10 == 0:
@@ -755,12 +767,13 @@ def train(meter_RL_list, NUM_EPISODE):
                         chosen_action = np.argmax(q_values)
                         print(f"Meter {meter_index} Step {step}: Q-values = {q_values}, Chosen action = {chosen_action}")
                     """
-                    # Create a figure with 4 vertically stacked subplots
-                    fig, axs = plt.subplots(8, 1, figsize=(10, 20))
+                    # Create a figure with x vertically stacked subplots
+                    fig, axs = plt.subplots(7, 1, figsize=(10, 20))
                     fig.suptitle('Performance Metrics Over Episodes', fontsize=16, y=0.92)
 
                     # Subplot for Average QoE
-                    axs[0].plot(avg_QoE_list, marker='o', linestyle='-', color='b', label='Avg QoE')
+                    axs[0].plot(avg_QoE_list, marker='o', linestyle='-', color='b', alpha = 0.3,  label='Avg QoE')
+                    axs[0].plot(smoothed_QoE, linestyle = '-', color = 'b', label = 'smoothed QoE')
                     axs[0].set_title('', fontsize=14)
                     axs[0].set_ylabel('Average QoE')
                     axs[0].set_xlabel('Episode')
@@ -768,7 +781,8 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[0].legend()
 
                     # Subplot for Average Delay
-                    axs[1].plot(avg_delay_list, marker='s', linestyle='-', color='g', label='Avg Delay')
+                    axs[1].plot(avg_delay_list, marker='s', linestyle='-', color='g', alpha = 0.3,  label='Avg Delay')
+                    axs[1].plot(smoothed_delay, linestyle='-', color='g', label='smoothed delay')
                     axs[1].set_title('', fontsize=14)
                     axs[1].set_ylabel('Average Delay')
                     axs[1].set_xlabel('Episode')
@@ -776,7 +790,8 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[1].legend()
 
                     # Subplot for Energy Consumption
-                    axs[2].plot(energy_cons_list, marker='^', linestyle='-', color='r', label='Energy Cons.')
+                    axs[2].plot(energy_cons_list, marker='^', linestyle='-', color='r', alpha = 0.3, label='Energy Cons.')
+                    axs[2].plot(smoothed_energy, linestyle='-', color='r', label='smoothed energy')
                     axs[2].set_title('', fontsize=14)
                     axs[2].set_ylabel('Energy Consumption')
                     axs[2].set_xlabel('Episode')
@@ -784,7 +799,8 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[2].legend()
 
                     # Subplot for Number of Drops
-                    axs[3].plot(num_drop_list, marker='x', linestyle='-', color='m', label='Num Drops')
+                    axs[3].plot(num_drop_list, marker='x', linestyle='-', color='m', alpha = 0.3, label='Num Drops')
+                    axs[3].plot(smoothed_drops, linestyle='-', color='m', label='Smoothed Num Drops')
                     axs[3].set_title('', fontsize=14)
                     axs[3].set_ylabel('Number Drops')
                     axs[3].set_xlabel('Episode')
@@ -792,7 +808,8 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[3].legend()
 
                     # Subplot for Successful Offloads
-                    axs[4].plot(offload_success_list, marker='x', linestyle='-', color='y', label='Successes')
+                    axs[4].plot(offload_success_list, marker='x', linestyle='-', color='y', alpha = 0.3, label='Successes')
+                    axs[4].plot(smoothed_offloads, linestyle='-', color='y', label='Smoothed Successes')
                     axs[4].set_title('', fontsize=14)
                     axs[4].set_ylabel('Successful Offloads')
                     axs[4].set_xlabel('Episode')
@@ -824,32 +841,13 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[6].set_xlabel('Episodes')
                     axs[6].grid(True, linestyle='--', alpha=0.7)
                     axs[6].legend()
-
-                    #Subplot for task vs offload ratio
-                    offload_ratio = [
-                        e/t if t > 0 else 0 
-                        for e, t in zip(offload_success_list, total_offload_attempt_list)
-                    ]
-                    
-                    print(offload_ratio)
-                    offload_ratio_per_task = [
-                      e/t if t > 0 else 0 
-                      for e, t in zip(offload_ratio, tasks_arrived_list)
-                    ]
-
-                    axs[7].plot(offload_ratio_per_task, marker='x', linestyle='-', color='g', label='Task vs Offload ratio')
-                    axs[7].set_title('', fontsize=14)
-                    axs[7].set_ylabel('offload ratio / task arrived')
-                    axs[7].set_xlabel('Episodes')
-                    axs[7].grid(True, linestyle='--', alpha=0.7)
-                    axs[7].legend()
                     
 
                     # Save the figure to a file
                     plt.tight_layout()
                     plt.subplots_adjust(top=0.9)
                     plt.savefig('Performance_Chart.png', dpi=100)
-                    #plt.show()
+                    plt.show()
 
 
 
