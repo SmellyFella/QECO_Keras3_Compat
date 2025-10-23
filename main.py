@@ -702,7 +702,7 @@ def train(meter_RL_list, NUM_EPISODE):
                 if episode % 200 == 0 and episode != 0:
                     os.makedirs("models" + "/" + str(episode))
                     for meter in range(env.n_meter):
-                        meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
+                        #meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
                         print("UE", meter, "Network_model_seved\n")
 
                 
@@ -710,7 +710,7 @@ def train(meter_RL_list, NUM_EPISODE):
                 if episode % 999 == 0 and episode != 0:
                     os.makedirs("models" + "/" + str(episode))
                     for meter in range(env.n_meter):
-                        meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
+                        #meter_RL_list[meter].saver.save(meter_RL_list[meter].sess, "models/" + str(episode) +'/'+ str(meter) + "_X_model" +'/model.ckpt', global_step=episode)
                         print("UE", meter, "Network_model_seved\n")
 
 
@@ -816,28 +816,24 @@ def train(meter_RL_list, NUM_EPISODE):
                     axs[4].grid(True, linestyle='--', alpha=0.7)
                     axs[4].legend()
 
-                    # Subplot for tasks arrived vs energy consumption
-                    energy_per_task = [
-                      e/t if t > 0 else 0 
-                      for e, t in zip(energy_cons_list, tasks_arrived_list)
-                    ]
-
-                    axs[5].plot(energy_per_task, marker='x', linestyle='-', color='g', label='Tasks vs Energy')
+                    # Subplot for tasks arrived
+                    axs[5].plot(tasks_arrived_list, marker='x', linestyle='-', color='g', alpha = 0.5, label='Tasks arrived')
+                    smoothed_tasks = smooth_curve(tasks_arrived_list, window)
+                    axs[5].plot(smoothed_tasks, marker='x', linestyle='-', color='g', label='smoothed')
                     axs[5].set_title('', fontsize=14)
                     axs[5].set_ylabel('Energy Consumption / task arrived')
                     axs[5].set_xlabel('Episode')
                     axs[5].grid(True, linestyle='--', alpha=0.7)
                     axs[5].legend()
 
-                    # Subplot for task vs time 
-                    delay_per_task = [
-                      e/t if t > 0 else 0 
-                      for e, t in zip(avg_delay_list, tasks_arrived_list)
-                    ]
-
-                    axs[6].plot(delay_per_task, marker='x', linestyle='-', color='g', label='Task vs Time')
+                    # Subplot for task arrived vs task dropped
+                    axs[6].plot(tasks_arrived_list, marker='x', linestyle='-', color='g', alpha = 0.5, label='Tasks arrived')
+                    smoothed_tasks = smooth_curve(tasks_arrived_list, window)
+                    axs[6].plot(smoothed_tasks, marker='x', linestyle='-', color='g', label='smoothed')
+                    axs[6].plot(num_drop_list, marker='x', linestyle='-', color='m', alpha = 0.3, label='Num Drops')
+                    axs[6].plot(smoothed_drops, linestyle='-', color='m', label='Smoothed Num Drops')
                     axs[6].set_title('', fontsize=14)
-                    axs[6].set_ylabel('Delay / task arrived')
+                    axs[6].set_ylabel('task amount')
                     axs[6].set_xlabel('Episodes')
                     axs[6].grid(True, linestyle='--', alpha=0.7)
                     axs[6].legend()
@@ -875,14 +871,25 @@ if __name__ == "__main__":
 
     # GENERATE MULTIPLE CLASSES FOR RL
     meter_RL_list = list()
+    baseline_list = list()
+    baseline_heuristic_list = list()
+
     for meter in range(Config.N_METER):
-        meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
+        """meter_RL_list.append(DuelingDoubleDeepQNetwork(env.n_actions, env.n_features, env.n_lstm_state, env.n_time,
                                                     learning_rate       = Config.LEARNING_RATE,
                                                     reward_decay        = Config.REWARD_DECAY,
                                                     e_greedy            = Config.E_GREEDY,
                                                     replace_target_iter = Config.N_NETWORK_UPDATE,  
                                                     memory_size         = Config.MEMORY_SIZE,  
-                                                    ))
+                                                    ))"""
+
+        
+        meter_RL_list.append(DQN_Base(env.n_time))  ##Used to measure baseline
+
+        #heuristic_agent = Heuristic_DQN(env.n_actions)
+        #baseline_heuristic_list.append(heuristic_agent)
+
+        
 
 
 
@@ -916,3 +923,4 @@ if __name__ == "__main__":
 
 
 
+'
