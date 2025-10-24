@@ -40,19 +40,19 @@ class Config(object):
 
     SMART_METER_PERIOD = 5   # tasks generated every 5 timesteps
 
-    #Baseline:
+    """#Baseline:
     LEARNING_RATE    = 0.001
     REWARD_DECAY     = 0.95
     E_GREEDY         = 0.9
     N_NETWORK_UPDATE = 200                  # Networks Parameter Replace
-    MEMORY_SIZE      = 5000                  # Replay Buffer Memory Size
+    MEMORY_SIZE      = 5000                  # Replay Buffer Memory Size"""
 
-    """#Search 1: stable learning
+    #Search 1: stable learning
     LEARNING_RATE    = 0.0005
     REWARD_DECAY     = 0.95
     E_GREEDY         = 1.0
     N_NETWORK_UPDATE = 1000
-    MEMORY_SIZE      = 20000"""
+    MEMORY_SIZE      = 20000
 
     """
     #Aggressive/fast learning
