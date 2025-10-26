@@ -185,8 +185,9 @@ class SmartGrid:
         for meter_index in range(self.n_meter):
             if self.arrive_task_size[self.time_count, meter_index] != 0:
 
+
                 self.deadline_remaining = (
-                  self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
+                  self.task_deadlines[self.time_count, meter_index] - (self.time_count - self.task_arrival_time[self.time_count, meter_index])
                 )
                 self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
 
@@ -202,7 +203,7 @@ class SmartGrid:
                     self.t_meter_tran[meter_index],
                     np.squeeze(self.b_substation_comp[meter_index, :]),
                     self.meter_energy_state[meter_index],
-                    self.deadline_remaining[meter_index],
+                    self.deadline_remaining,
                     meter_local_queue_len,
                     meter_transmit_queue_len,
                     substation_queue_len
@@ -710,7 +711,7 @@ class SmartGrid:
           for t_idx in range(self.n_time):
               task_size = self.arrive_task_size[t_idx, meter_idx]
               if task_size > 0:
-                  deadline = self.task_deadlines[t_idx, meter_idx]
+                  deadline = self.task_deadlines[self.time_count, meter_idx]
                   total_delay = comm_delay + proc_delay  # as before
                   if total_delay > deadline:
                       self.unfinish_task[t_idx, meter_idx] = 1
@@ -754,7 +755,7 @@ class SmartGrid:
                     # state [A, B^{comp}, B^{tran}, [B^{substation}]]
 
                     self.deadline_remaining = (
-                        self.task_deadlines[meter_index] - (self.time_count - self.task_arrival_time[meter_index])
+                        self.task_deadlines[self.time_count, meter_index] - (self.time_count - self.task_arrival_time[self.time_count, meter_index])
                       )
                     self.deadline_remaining = np.clip(self.deadline_remaining / Config.NONCRITICAL_DEADLINE, 0, 1)
                     
@@ -771,7 +772,7 @@ class SmartGrid:
                         self.t_meter_tran[meter_index] - self.time_count + 1,        #Meters transmission time
                         self.b_substation_comp[meter_index, :],                      #Substation computational load/capacities
                         self.meter_energy_state[meter_index],                        #idle/normal/peak level for meters
-                        self.deadline_remaining[meter_index],
+                        self.deadline_remaining,
                         meter_local_queue_len,
                         meter_transmit_queue_len,
                         substation_queue_len                                      #Remaining task deadline
