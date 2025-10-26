@@ -121,160 +121,6 @@ def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state,
 
     return QoE
 
-"""
-#Updated reward function:
-def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy, success_flag=0, meter_capacity_util=None, task_criticality=1.0, deadline_remaining=None,
-    queue_len_local=None,
-    queue_len_transmit=None):
-   
-      # --- ENERGY ---
-    substation_energy = np.sum(substation_comp_energy)
-    idle_energy = np.sum(meter_idle_energy)
-    total_energy = meter_comp_energy + meter_trans_energy + substation_energy + idle_energy
-    scaled_energy = normalize(total_energy, 0, 20)  # 0–1 scale
-
-    # --- DELAY ---
-    delay_ratio = delay / max_delay if max_delay > 0 else 0
-    delay_penalty = 3 * np.clip(delay_ratio, 0, 1) * task_criticality
-
-    # --- QUEUE PENALTY ---
-    queue_penalty = 0
-    
-    if queue_len_local is not None:
-        queue_penalty += 0.5 * np.tanh(queue_len_local / 5)
-    if queue_len_transmit is not None:
-        queue_penalty += 0.5 * np.tanh(queue_len_transmit / 5)
-
-    # --- DEADLINE URGENCY ---
-    if deadline_remaining is not None:
-        # reward being further from deadline (higher remaining time)
-        deadline_reward = 2 * deadline_remaining
-    else:
-        deadline_reward = 0
-
-    # --- UNFINISHED TASK PENALTY ---
-    unfinish_penalty = 20 * task_criticality if unfinish_task else 0
-
-    # --- CAPACITY UTILIZATION ---
-    util_penalty = 0
-    if meter_capacity_util is not None:
-        util_penalty = 2 * abs(meter_capacity_util - 0.8)
-
-    # --- OFFLOAD SUCCESS ---
-    offload_bonus = 5 * success_flag * task_criticality
-
-    # --- Combine ---
-    cost = (
-        0.6 * scaled_energy
-        + 4.0 * delay_penalty
-        + 2.0 * queue_penalty
-        + unfinish_penalty
-        + util_penalty
-        - 2.0 * deadline_reward
-    )
-
-    #print("scaled en: ", scaled_energy, ", delay pen: ", delay_penalty, ", queue pen: ", queue_penalty, ", unfinish pen: ", unfinish_penalty, ", util pen: ", util_penalty, ", deadline rew: ", deadline_reward)
-
-    components = {
-      'scaled_energy': float(scaled_energy) if np.isscalar(scaled_energy) else float(np.sum(scaled_energy)),
-      'delay_penalty': float(delay_penalty),
-      'unfinish_penalty': float(unfinish_penalty),
-      'util_penalty': float(util_penalty),
-      'offload_bonus': float(offload_bonus),
-    }
-
-    QoE = 20 - cost + offload_bonus + (10*success_flag*task_criticality)
-    QoE = float(np.clip(QoE, -100, 100))  # stabilise reward scale
-
-    if not hasattr(QoE_Function, 'log_buffer'):
-        QoE_Function.log_buffer = []
-    QoE_Function.log_buffer.append((QoE, components))
-
-    return QoE
-"""
-"""
-    # --- QUEUE PENALTY ---
-    queue_penalty = 0
-    if queue_len_local is not None:
-        queue_penalty += 0.5 * np.tanh(queue_len_local / 5)
-    if queue_len_transmit is not None:
-        queue_penalty += 0.5 * np.tanh(queue_len_transmit / 5)
-
-    if deadline_remaining is not None:
-        # reward being further from deadline (higher remaining time)
-        deadline_reward = 2 * deadline_remaining
-    else:
-        deadline_reward = 0
-
-    #Scaling of inputs
-    substation_energy = np.sum(substation_comp_energy)
-    idle_energy = np.sum(meter_idle_energy)
-     # --- ENERGY COMPONENT ---
-    total_energy = meter_comp_energy + meter_trans_energy + substation_energy + idle_energy
-    scaled_energy = normalize(total_energy, 0, 20) * 10   # scale to 0–10 range
-
-    # --- DELAY COMPONENT ---
-    delay_ratio = delay / max_delay if max_delay > 0 else 0
-    if delay_ratio > 1:   # deadline missed
-        delay_penalty = 5 * delay_ratio * task_criticality
-    else:
-        delay_penalty = 3* delay_ratio * task_criticality
-
-    # --- UNFINISHED TASK PENALTY ---
-    unfinish_penalty = 100 * task_criticality if unfinish_task else 0
-
-    # --- CAPACITY UTILIZATION (optional) ---
-    if meter_capacity_util is not None:
-        util_penalty = 2* abs(meter_capacity_util - 0.8)  # target ~80% utilization
-    else:
-        util_penalty = 0
-
-    # --- OFFLOADING SUCCESS REWARD ---
-    # success_flag = 1 if offloaded and processed, 0 otherwise
-    offload_bonus = 50 * success_flag * task_criticality
-
-    # --- COMBINE ---
-    cost = (0.2 * scaled_energy) + (9 * delay_penalty) + unfinish_penalty + util_penalty + (2*queue_penalty) - (2*deadline_reward)
-    QoE = 50 - cost + offload_bonus   # positive reward if cost is low and offload succeeded
-
-    QoE = float(QoE)
-
-    # return both scalar and breakdown
-    breakdown = {
-        "delay_penalty": delay_penalty,
-        "unfinish_penalty": unfinish_penalty,
-        "util_penalty": util_penalty,
-        "energy_cost": cost,
-        "offload_bonus": offload_bonus
-    }
-
-    return QoE
-    """
-
-#####OLD QoE (Reward) Function.  
-"""
-def QoE_Function(delay, max_delay, unfinish_task, meter_energy_state, meter_comp_energy, meter_trans_energy, substation_comp_energy, meter_idle_energy):
-    
-    substation_energy  = next((e for e in substation_comp_energy if e != 0), 0)
-    idle_energy = next((e for e in meter_idle_energy if e != 0), 0)
-
-    energy_cons = meter_comp_energy + meter_trans_energy #+ substation_energy + idle_energy
-    #print(meter_comp_energy , meter_trans_energy , substation_energy , idle_energy)
-    #print(meter_energy_state, delay, energy_cons)
-    
-    scaled_energy = normalize(energy_cons, 0, 20)*10
-    cost = 2 * ((meter_energy_state * delay) + ((1 - meter_energy_state) * scaled_energy))
-
-    Reward = max_delay*4
-
-    if unfinish_task:
-        QoE = - cost
-    else:
-        QoE = Reward - cost
-
-    return QoE
-"""
-
 def Drop_Count(meter_RL_list, episode):
     drrop_delay10 = 0 
     drrop = 0
@@ -583,7 +429,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 success_flag,
                                                                                 env.meter_capacity_util[meter_index],
                                                                                 env.task_criticality[time_index, meter_index],
-                                                                                env.deadline_remaining[meter_index],
+                                                                                env.deadline_remaining,
                                                                                 env.meter_computation_queue[meter_index].qsize(),
                                                                                 env.meter_transmission_queue[meter_index].qsize()),
                                                                 history[time_index][meter_index]['observation_'],
@@ -600,7 +446,7 @@ def train(meter_RL_list, NUM_EPISODE):
                                                                                 success_flag,
                                                                                 env.meter_capacity_util[meter_index],
                                                                                 env.task_criticality[time_index, meter_index],
-                                                                                env.deadline_remaining[meter_index],
+                                                                                env.deadline_remaining,
                                                                                 env.meter_computation_queue[meter_index].qsize(),
                                                                                 env.meter_transmission_queue[meter_index].qsize()))
                         meter_RL_list[meter_index].do_store_delay(episode, time_index,
