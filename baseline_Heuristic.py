@@ -188,7 +188,7 @@ class Heuristic_DQN:
         self.lstm_history.append(lstm_s)
 
     def choose_action(self, observation):
-          """
+      """
       Heuristic: 
       - If local compute time is lower than transmission+substation compute time → choose local.
       - Else send to substation with lowest queue length.
